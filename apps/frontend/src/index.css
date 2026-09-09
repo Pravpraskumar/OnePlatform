@@ -1,0 +1,142 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  background: #f8fafc;
+  color: #0f172a;
+}
+
+.marketing-page {
+  font-family: "Aptos Display", "Trebuchet MS", sans-serif;
+}
+
+.marketing-hero::before {
+  position: absolute;
+  inset: 0;
+  content: "";
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+  background-size: 52px 52px;
+  mask-image: linear-gradient(to bottom, black, transparent 85%);
+}
+
+.marketing-hero::after {
+  position: absolute;
+  top: 13%;
+  right: -12%;
+  width: 62%;
+  aspect-ratio: 1;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 50%;
+  content: "";
+  pointer-events: none;
+}
+
+.marketing-reveal {
+  animation: marketing-rise 650ms ease-out both;
+}
+
+.marketing-console {
+  animation: marketing-rise 750ms 100ms ease-out both;
+}
+
+.marketing-console-shell {
+  transform: perspective(1200px) rotateY(-3deg) rotateX(1deg);
+  transform-origin: center;
+}
+
+.marketing-metric {
+  animation: marketing-rise 600ms ease-out both;
+}
+
+@keyframes marketing-rise {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 1023px) {
+  .marketing-console-shell {
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .marketing-reveal,
+  .marketing-console,
+  .marketing-metric {
+    animation: none;
+  }
+}
+
+/* User theme variables are scoped below the header and banner. */
+.user-theme,
+.user-theme main {
+  background-color: var(--user-theme-background);
+  color: var(--user-theme-text);
+}
+
+.user-theme aside,
+.user-theme .bg-white {
+  background-color: var(--user-theme-surface) !important;
+}
+
+.user-theme .bg-slate-50,
+.user-theme .bg-slate-100 {
+  background-color: color-mix(in srgb, var(--user-theme-surface) 88%, var(--user-theme-background)) !important;
+}
+
+.user-theme .text-slate-900,
+.user-theme .text-slate-800,
+.user-theme .text-slate-700,
+.user-theme .text-slate-600 {
+  color: var(--user-theme-text) !important;
+}
+
+.user-theme .text-slate-500,
+.user-theme .text-slate-400 {
+  color: var(--user-theme-muted) !important;
+}
+
+.user-theme .border-slate-100,
+.user-theme .border-slate-200,
+.user-theme .border-slate-300 {
+  border-color: var(--user-theme-border) !important;
+}
+
+.user-theme .bg-brand {
+  background-color: var(--user-theme-brand) !important;
+}
+
+.user-theme .text-brand {
+  color: var(--user-theme-brand) !important;
+}
+
+.user-theme .border-brand {
+  border-color: var(--user-theme-brand) !important;
+}
+
+.user-theme .rounded-md,
+.user-theme .rounded-lg {
+  border-radius: var(--user-theme-radius) !important;
+}

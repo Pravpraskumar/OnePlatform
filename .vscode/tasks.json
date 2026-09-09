@@ -1,0 +1,133 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Validate CreditGuard PCG language form",
+			"type": "shell",
+			"command": "C:\\Program Files\\nodejs\\npm.cmd",
+			"args": [
+				"exec",
+				"--workspace",
+				"@platform/frontend",
+				"--",
+				"tsc",
+				"--noEmit",
+				"--ignoreDeprecations",
+				"5.0"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$tsc"
+			],
+			"group": "build"
+		},
+		{
+			"label": "Generate PCG language migration",
+			"type": "shell",
+			"command": "C:\\Program Files\\nodejs\\npm.cmd",
+			"args": [
+				"run",
+				"db:generate",
+				"--workspace",
+				"@platform/creditguard-service"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Apply PCG language migration",
+			"type": "shell",
+			"command": "C:\\Program Files\\nodejs\\npm.cmd",
+			"args": [
+				"run",
+				"db:migrate",
+				"--workspace",
+				"@platform/creditguard-service"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Validate Current Status selector",
+			"type": "shell",
+			"command": "C:\\Program Files\\nodejs\\npm.cmd",
+			"args": [
+				"exec",
+				"--workspace",
+				"@platform/frontend",
+				"--",
+				"tsc",
+				"--noEmit",
+				"--ignoreDeprecations",
+				"5.0"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$tsc"
+			],
+			"group": "build"
+		},
+		{
+			"label": "Validate Award status selector",
+			"type": "shell",
+			"command": "C:\\Program Files\\nodejs\\npm.cmd",
+			"args": [
+				"exec",
+				"--workspace",
+				"@platform/frontend",
+				"--",
+				"tsc",
+				"--noEmit",
+				"--ignoreDeprecations",
+				"5.0"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$tsc"
+			],
+			"group": "build"
+		},
+		{
+			"label": "Validate CreditGuard reports page",
+			"type": "shell",
+			"command": "C:\\Program Files\\nodejs\\npm.cmd",
+			"args": [
+				"exec",
+				"--workspace",
+				"@platform/frontend",
+				"--",
+				"tsc",
+				"--noEmit",
+				"--ignoreDeprecations",
+				"5.0"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$tsc"
+			],
+			"group": "build"
+		},
+		{
+			"label": "Validate CreditGuard landing actions",
+			"type": "shell",
+			"command": "C:\\Program Files\\nodejs\\npm.cmd",
+			"args": [
+				"exec",
+				"--workspace",
+				"@platform/frontend",
+				"--",
+				"tsc",
+				"--noEmit",
+				"--ignoreDeprecations",
+				"5.0"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$tsc"
+			],
+			"group": "build"
+		}
+	]
+}

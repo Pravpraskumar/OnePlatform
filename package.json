@@ -1,0 +1,28 @@
+{
+  "name": "designer-platform",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Enterprise multi-tenant SaaS platform monorepo (core backend, product services, frontend, shared packages).",
+  "license": "UNLICENSED",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "dev": "concurrently -k -n core,creditguard,prime,web -c blue,green,magenta,cyan \"npm:dev:core\" \"npm:dev:creditguard\" \"npm:dev:prime\" \"npm:dev:frontend\"",
+    "dev:core": "npm run start:dev --workspace @platform/core-backend",
+    "dev:creditguard": "npm run start:dev --workspace @platform/creditguard-service",
+    "dev:prime": "npm run start:dev --workspace @platform/prime-service",
+    "dev:frontend": "npm run dev --workspace @platform/frontend",
+    "db:core:migrate": "npm run db:migrate --workspace @platform/core-backend",
+    "db:core:seed": "npm run db:seed --workspace @platform/core-backend"
+  },
+  "devDependencies": {
+    "concurrently": "^9.0.1"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
