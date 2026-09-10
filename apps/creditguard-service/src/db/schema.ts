@@ -48,6 +48,7 @@ export const requestDetails = pgTable(
     contractingEntity: jsonb('contracting_entity').$type<string[]>().notNull(),
     proposalContractReference: varchar('proposal_contract_reference', { length: 300 }).notNull(),
     currentContractStatus: varchar('current_contract_status', { length: 200 }).notNull(),
+    beneficiaryAddress: text('beneficiary_address'),
     pcgLanguage: varchar('pcg_language', { length: 50 }).notNull().default('Beneficiary / Client Required Format'),
     maximumLiabilityPercent: numeric('maximum_liability_percent', { precision: 5, scale: 2 }),
     obligationsExtinguishedMode: varchar('obligations_extinguished_mode', { length: 10 }).notNull().default('date'),

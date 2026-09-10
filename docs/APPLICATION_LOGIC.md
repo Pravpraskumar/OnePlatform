@@ -105,8 +105,9 @@ The sidebar is data-driven from `GET /api/menus/mine?orgId=...`. Menu trees cont
 | `/app/dashboard` | Selected organisation summary |
 | `/app/products` | Products assigned to selected organisation |
 | `/app/product/:code` | Product lookup, project selection, license acquisition, product landing |
-| `/app/product/CreditGuard/requests` | Request list, filtering, sorting, columns, update, delete |
-| `/app/product/CreditGuard/requests/new` | Company guarantee request form |
+| `/app/product/CreditGuard/requests` | Request list, filtering, sorting, configurable columns, Notes-only inline editing, request-number links to full editing, and delete |
+| `/app/product/CreditGuard/requests/new` | Initial company guarantee form; saves a server-controlled Draft without approval fields |
+| `/app/product/CreditGuard/requests/:requestId/edit` | Loads and updates the complete saved request, including requesting-division and approval fields |
 | `/app/product/CreditGuard/reports` | Request counts and portfolio aggregates |
 | `/app/product/CreditGuard/application-setup/business-entities` | Permission-aware business entity CRUD |
 | `/app/resources` | Shared resources |
@@ -178,7 +179,7 @@ All tenant-sensitive queries must be scoped by organisation and checked against 
 
 CreditGuard requests belong to an organisation and may belong to a project. The list flow opens a valid product session before querying `/creditguard-api/requests?orgId=...&projectId=...`.
 
-Request fields include request number, instrument type, applicant, beneficiary, amount, currency, status, requester, due/review dates, notes, and detailed company-guarantee fields. Status values are `Draft`, `Under Review`, `Approved`, `Issued`, `Rejected`, and `Closed`. Amount is non-negative. The detailed form supports single- or multi-entity modes; single mode restricts each entity selection to one value.
+Request fields include request number, instrument type, applicant, beneficiary name, beneficiary address, amount, currency, status, requester, due/review dates, notes, and detailed company-guarantee fields. Beneficiary name remains on the request summary while beneficiary address is stored in `request_details.beneficiary_address`; the address column is nullable for compatibility with existing requests but required when request details are created or updated. Status values are `Draft`, `Under Review`, `Approved`, `Issued`, `Rejected`, and `Closed`. Amount is non-negative. The detailed form supports single- or multi-entity modes; single mode restricts each entity selection to one value. The legacy Attachments text field is not shown during New Request creation.
 
 Business entities contain job-code entity, segment, legal entity name, ledger, and inventory organisation metadata. `(jobCodeEntity, segment1, legalEntityName)` is unique. The page finds its own menu grant; `readonly` hides mutation controls.
 
@@ -248,4 +249,3 @@ When adding a user-visible route or mutation:
 - Browser termination can hold a seat until the session reaper runs.
 - Distributed transactions do not exist across core and product databases.
 - PRIME domain behavior remains to be implemented.
-

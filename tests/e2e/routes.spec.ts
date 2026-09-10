@@ -8,6 +8,7 @@ const routes = [
   ['/app/product/CreditGuard', 'CreditGuard Process Guide'],
   ['/app/product/CreditGuard/requests', 'Requests'],
   ['/app/product/CreditGuard/requests/new', 'New Company Guarantee Request'],
+  ['/app/product/CreditGuard/requests/request-1/edit', 'Edit Company Guarantee Request'],
   ['/app/product/CreditGuard/reports', 'Reports & Analytics'],
   ['/app/product/CreditGuard/application-setup/business-entities', 'Business Entities'],
   ['/app/resources', 'Resources'],
@@ -46,4 +47,3 @@ test('/app redirects to the dashboard and unknown routes return home', async ({ 
   await page.goto('/not-a-route');
   await expect(page).toHaveURL(/\/$/);
 });
-

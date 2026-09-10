@@ -24,7 +24,7 @@ test('a concurrent-seat rejection blocks product entry with a useful message', a
   await expect(page.getByText(/No CreditGuard seats are currently available/)).toBeVisible();
 });
 
-test('request list supports filtering, inline editing, and deletion', async ({ page }) => {
+test('request list links to full editing and supports Notes-only inline editing and deletion', async ({ page }) => {
   let patchBody: unknown;
   await page.route('**/creditguard-api/requests/request-1', async (route) => {
     if (route.request().method() === 'PATCH') {
@@ -35,19 +35,24 @@ test('request list supports filtering, inline editing, and deletion', async ({ p
   });
 
   await page.goto('/app/product/CreditGuard/requests');
-  await expect(page.getByText('CG-1001')).toBeVisible();
+  const requestLink = page.getByRole('link', { name: 'CG-1001' });
+  await expect(requestLink).toHaveAttribute('href', '/app/product/CreditGuard/requests/request-1/edit');
   await page.getByPlaceholder('Filter Request No.').fill('missing');
   await expect(page.getByText('CG-1001')).toBeHidden();
   await page.getByPlaceholder('Filter Request No.').fill('');
 
-  await page.getByTitle('Edit').click();
-  await page.locator('tbody input').first().fill('CG-2002');
+  await page.getByTitle('Edit notes').click();
+  await expect(page.locator('tbody input')).toHaveCount(1);
+  await page.getByLabel('Notes for CG-1001').fill('Updated request note');
   await page.getByTitle('Save').click();
-  await expect.poll(() => patchBody).toMatchObject({ requestNumber: 'CG-2002' });
+  await expect.poll(() => patchBody).toMatchObject({
+    requestNumber: 'CG-1001',
+    notes: 'Updated request note',
+  });
 
   page.once('dialog', (dialog) => dialog.accept());
   await page.getByTitle('Delete').click();
-  await expect(page.getByText('CG-2002')).toBeHidden();
+  await expect(page.getByText('CG-1001')).toBeHidden();
 });
 
 test('request reports aggregate the current portfolio', async ({ page }) => {

@@ -22,6 +22,7 @@ interface RequestDetailsInput {
   contractingEntity: string[];
   proposalContractReference: string;
   currentContractStatus: string;
+  beneficiaryAddress: string;
   pcgLanguage: string;
   maximumLiabilityPercent?: string | null;
   obligationsExtinguishedMode: 'date' | 'text';
@@ -97,7 +98,7 @@ export class AppController {
     this.validateRequest(input);
     if (input.details) this.validateDetails(input.details);
     return this.db.transaction(async (tx) => {
-      const [created] = await tx.insert(requests).values(this.values(input)).returning();
+      const [created] = await tx.insert(requests).values({ ...this.values(input), status: 'Draft' }).returning();
       if (!input.details) return created;
       const [details] = await tx
         .insert(requestDetails)
@@ -122,13 +123,25 @@ export class AppController {
   @Patch('requests/:id')
   async updateRequest(@Param('id') id: string, @Body() input: RequestInput) {
     this.validateRequest(input);
-    const [updated] = await this.db
-      .update(requests)
-      .set({ ...this.values(input), updatedAt: new Date() })
-      .where(and(eq(requests.id, id), eq(requests.orgId, input.orgId)))
-      .returning();
-    if (!updated) throw new NotFoundException('Request not found');
-    return updated;
+    if (input.details) this.validateDetails(input.details);
+    return this.db.transaction(async (tx) => {
+      const [updated] = await tx
+        .update(requests)
+        .set({ ...this.values(input), updatedAt: new Date() })
+        .where(and(eq(requests.id, id), eq(requests.orgId, input.orgId)))
+        .returning();
+      if (!updated) throw new NotFoundException('Request not found');
+      if (!input.details) return updated;
+      const [details] = await tx
+        .insert(requestDetails)
+        .values({ requestId: id, ...this.detailValues(input.details) })
+        .onConflictDoUpdate({
+          target: requestDetails.requestId,
+          set: { ...this.detailValues(input.details), updatedAt: new Date() },
+        })
+        .returning();
+      return { ...updated, details };
+    });
   }
 
   @Delete('requests/:id')
@@ -230,6 +243,7 @@ export class AppController {
       'dateSubmitted',
       'proposalContractReference',
       'currentContractStatus',
+      'beneficiaryAddress',
       'pcgLanguage',
       'backgroundRequirement',
       'projectDescription',
@@ -261,6 +275,7 @@ export class AppController {
       contractingEntity: this.entityValues(input.contractingEntity),
       proposalContractReference: input.proposalContractReference.trim(),
       currentContractStatus: input.currentContractStatus.trim(),
+      beneficiaryAddress: input.beneficiaryAddress.trim(),
       pcgLanguage: input.pcgLanguage.trim(),
       maximumLiabilityPercent: optionalText(input.maximumLiabilityPercent),
       obligationsExtinguishedMode: input.obligationsExtinguishedMode,

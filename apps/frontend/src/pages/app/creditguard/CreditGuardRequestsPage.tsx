@@ -34,8 +34,6 @@ interface CreditGuardRequest {
 type RequestDraft = Omit<CreditGuardRequest, 'id' | 'createdAt' | 'updatedAt'>;
 type ColumnKey = keyof Pick<CreditGuardRequest, 'requestNumber' | 'instrumentType' | 'beneficiary' | 'amount' | 'currency' | 'status' | 'requestedBy' | 'dueDate' | 'nextReviewDate' | 'notes' | 'updatedAt'>;
 
-const instrumentTypes = ['Letter of Comfort', 'Parent Company Guarantee', 'Standby Letter of Credit', 'Bank Guarantee', 'Documentary Letter of Credit'];
-const statuses: RequestStatus[] = ['Draft', 'Under Review', 'Approved', 'Issued', 'Rejected', 'Closed'];
 const columns: { key: ColumnKey; label: string; minWidth: string }[] = [
   { key: 'requestNumber', label: 'Request No.', minWidth: 'min-w-36' },
   { key: 'instrumentType', label: 'Instrument', minWidth: 'min-w-52' },
@@ -195,14 +193,18 @@ export function CreditGuardRequestsPage() {
     }
   };
 
-  const renderEditor = (key: ColumnKey) => {
-    if (!draft) return null;
-    if (key === 'updatedAt') return <span className="text-xs text-slate-400">Pending save</span>;
-    if (key === 'instrumentType') return <select className={inputClass} value={draft.instrumentType} onChange={(event) => setDraft({ ...draft, instrumentType: event.target.value })}>{instrumentTypes.map((type) => <option key={type}>{type}</option>)}</select>;
-    if (key === 'status') return <select className={inputClass} value={draft.status} onChange={(event) => setDraft({ ...draft, status: event.target.value as RequestStatus })}>{statuses.map((status) => <option key={status}>{status}</option>)}</select>;
-    if (key === 'amount') return <input className={inputClass} type="number" min={0} value={draft.amount} onChange={(event) => setDraft({ ...draft, amount: Number(event.target.value) })} />;
-    if (key === 'dueDate' || key === 'nextReviewDate') return <input className={inputClass} type="date" value={draft[key] ?? ''} onChange={(event) => setDraft({ ...draft, [key]: event.target.value || null })} />;
-    return <input className={inputClass} value={String(draft[key] ?? '')} maxLength={key === 'currency' ? 3 : undefined} onChange={(event) => setDraft({ ...draft, [key]: event.target.value || (key === 'notes' ? null : '') })} />;
+  const requestEditUrl = (row: CreditGuardRequest) =>
+    `/app/product/CreditGuard/requests/${row.id}/edit${projectId ? `?projectId=${encodeURIComponent(projectId)}` : ''}`;
+
+  const renderCell = (row: CreditGuardRequest, key: ColumnKey, editing: boolean) => {
+    if (key === 'notes' && editing && draft) {
+      return <input aria-label={`Notes for ${row.requestNumber}`} className={inputClass} value={draft.notes ?? ''} onChange={(event) => setDraft({ ...draft, notes: event.target.value || null })} />;
+    }
+    if (key === 'requestNumber') return <Link to={requestEditUrl(row)} className="font-medium text-brand underline-offset-2 hover:underline">{row.requestNumber}</Link>;
+    if (key === 'amount') return new Intl.NumberFormat(undefined, { style: 'currency', currency: row.currency }).format(row.amount);
+    if (key === 'updatedAt') return new Date(row.updatedAt).toLocaleString();
+    if (key === 'status') return <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-medium">{row.status}</span>;
+    return String(row[key] ?? '—');
   };
 
   if (!selectedOrg) return <Card><h1 className="text-xl font-semibold">Select an organisation</h1><p className="mt-2 text-sm text-slate-500">Choose an organisation before opening CreditGuard Requests.</p></Card>;
@@ -244,7 +246,7 @@ export function CreditGuardRequestsPage() {
               <tbody>
                 {displayedRows.map((row) => {
                   const editing = editingId === row.id;
-                  return <tr key={row.id} className="border-b border-slate-100 hover:bg-slate-50/70">{columns.filter((column) => visibleColumns.has(column.key)).map((column) => <td key={column.key} className="px-3 py-3 align-top text-slate-700">{editing ? renderEditor(column.key) : column.key === 'amount' ? new Intl.NumberFormat(undefined, { style: 'currency', currency: row.currency }).format(row.amount) : column.key === 'updatedAt' ? new Date(row.updatedAt).toLocaleString() : column.key === 'status' ? <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-medium">{row.status}</span> : String(row[column.key] ?? '—')}</td>)}<td className="sticky right-0 bg-white px-3 py-2"><div className="flex justify-end gap-1">{editing ? <><button type="button" onClick={() => void save()} disabled={saving} className="rounded p-2 text-emerald-700 hover:bg-emerald-50" title="Save"><Save size={16} /></button><button type="button" onClick={() => { setEditingId(null); setDraft(null); }} className="rounded p-2 text-slate-500 hover:bg-slate-100" title="Cancel"><X size={16} /></button></> : <><button type="button" onClick={() => startEdit(row)} disabled={!!editingId} className="rounded p-2 text-slate-500 hover:bg-slate-100" title="Edit"><Pencil size={16} /></button><button type="button" onClick={() => void remove(row)} disabled={!!editingId} className="rounded p-2 text-slate-500 hover:bg-red-50 hover:text-red-600" title="Delete"><Trash2 size={16} /></button></>}</div></td></tr>;
+                  return <tr key={row.id} className="border-b border-slate-100 hover:bg-slate-50/70">{columns.filter((column) => visibleColumns.has(column.key)).map((column) => <td key={column.key} className="px-3 py-3 align-top text-slate-700">{renderCell(row, column.key, editing)}</td>)}<td className="sticky right-0 bg-white px-3 py-2"><div className="flex justify-end gap-1">{editing ? <><button type="button" onClick={() => void save()} disabled={saving} className="rounded p-2 text-emerald-700 hover:bg-emerald-50" title="Save"><Save size={16} /></button><button type="button" onClick={() => { setEditingId(null); setDraft(null); }} className="rounded p-2 text-slate-500 hover:bg-slate-100" title="Cancel"><X size={16} /></button></> : <><button type="button" onClick={() => startEdit(row)} disabled={!!editingId} className="rounded p-2 text-slate-500 hover:bg-slate-100" title="Edit notes"><Pencil size={16} /></button><button type="button" onClick={() => void remove(row)} disabled={!!editingId} className="rounded p-2 text-slate-500 hover:bg-red-50 hover:text-red-600" title="Delete"><Trash2 size={16} /></button></>}</div></td></tr>;
                 })}
                 {!loadingRows && displayedRows.length === 0 && <tr><td colSpan={visibleColumns.size + 1} className="px-4 py-10 text-center text-slate-400">No requests match the current filters.</td></tr>}
                 {loadingRows && <tr><td colSpan={visibleColumns.size + 1} className="px-4 py-10 text-center text-slate-400">Loading requests...</td></tr>}

@@ -40,6 +40,40 @@ export const creditGuardRequest = {
   updatedAt: '2026-09-02T00:00:00.000Z',
 };
 
+export const creditGuardDetails = {
+  emailRequestToCorporateTreasury: false,
+  enableMultiEntity: false,
+  parentCompanyOfferingGuarantee: ['entity-1'],
+  dateSubmitted: '2026-09-01',
+  requestingEntity: ['entity-1'],
+  contractingEntity: ['entity-1'],
+  proposalContractReference: 'PCG-1001',
+  currentContractStatus: 'Award',
+  beneficiaryAddress: '100 Example Street, Houston, TX 77002',
+  pcgLanguage: 'Standard Description',
+  maximumLiabilityPercent: '100',
+  obligationsExtinguishedMode: 'date',
+  obligationsExtinguishedDate: '2027-09-01',
+  backgroundRequirement: 'Contract requirement',
+  projectDescription: 'Example project',
+  optionalComments: '',
+  deliveryInstructions: '',
+  attachments: '',
+  requesterName: user.displayName,
+  requesterApprovalDate: '2026-09-01',
+  blFinanceVpNameTitle: 'Finance VP',
+  blFinanceVpApprovalDate: '',
+  blLegalDepartment: 'Legal',
+  blLegalApprovalDate: '',
+  sustainabilityGovernanceApproval: '',
+  sustainabilityGovernanceApprovalDate: '',
+  cfoApproval: '',
+  cfoApprovalDate: '',
+  corporateTreasuryApproval: '',
+  corporateTreasuryApprovalDate: '',
+  legalLanguageConfirmed: true,
+};
+
 const businessEntity = {
   id: 'entity-1',
   jobCodeEntity: '100',
@@ -146,6 +180,7 @@ export async function mockApp(page: Page, options: { requests?: typeof creditGua
     }
     if (url.pathname.includes('/requests/')) {
       if (method === 'DELETE') return json(route, {});
+      if (method === 'GET') return json(route, { ...creditGuardRequest, details: creditGuardDetails });
       return json(route, { ...creditGuardRequest, ...route.request().postDataJSON() });
     }
     return json(route, {});

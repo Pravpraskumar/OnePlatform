@@ -10,6 +10,7 @@ import { ProductsPage } from '@/pages/app/ProductsPage';
 import { ProductLandingPage } from '@/pages/app/ProductLandingPage';
 import { CreditGuardRequestsPage } from '@/pages/app/creditguard/CreditGuardRequestsPage';
 import { CreditGuardNewRequestPage } from '@/pages/app/creditguard/CreditGuardNewRequestPage';
+import { CreditGuardEditRequestPage } from '@/pages/app/creditguard/CreditGuardEditRequestPage';
 import { CreditGuardBusinessEntitiesPage } from '@/pages/app/creditguard/CreditGuardBusinessEntitiesPage';
 import { CreditGuardReportsPage } from '@/pages/app/creditguard/CreditGuardReportsPage';
 import { ResourcesPage } from '@/pages/app/ResourcesPage';
@@ -48,6 +49,7 @@ export const router = createBrowserRouter([
       { path: '/app/product/:code', element: <ProductLandingPage /> },
       { path: '/app/product/CreditGuard/requests', element: <CreditGuardRequestsPage /> },
       { path: '/app/product/CreditGuard/requests/new', element: <CreditGuardNewRequestPage /> },
+      { path: '/app/product/CreditGuard/requests/:requestId/edit', element: <CreditGuardEditRequestPage /> },
       { path: '/app/product/CreditGuard/reports', element: <CreditGuardReportsPage /> },
       { path: '/app/product/CreditGuard/application-setup/business-entities', element: <CreditGuardBusinessEntitiesPage /> },
       { path: '/app/resources', element: <ResourcesPage /> },
