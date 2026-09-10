@@ -5,13 +5,12 @@ import { clsx } from 'clsx';
 import { Logo } from './Logo';
 import { LanguageSelector } from './LanguageSelector';
 import { OrgSelector } from './OrgSelector';
-import { UserMenu } from './UserMenu';
 import { useTheme } from '@/state/ThemeProvider';
 
 interface Props {
   onToggleSidebar: () => void;
   onOpenThemeCustomizer: () => void;
-  moduleName: string | null;
+  moduleName?: string | null;
 }
 
 const tabs = [
@@ -38,8 +37,7 @@ export function AppHeader({ onToggleSidebar, onOpenThemeCustomizer, moduleName }
         >
           <MenuIcon size={20} />
         </button>
-        <Logo textColor={headerTextColor} />
-        {moduleName && <span className="hidden text-sm font-medium sm:inline">/ {moduleName}</span>}
+        <Logo textColor={headerTextColor} moduleName={moduleName} />
       </div>
 
       {/* Middle: primary tabs (hidden on small screens) */}
@@ -51,7 +49,7 @@ export function AppHeader({ onToggleSidebar, onOpenThemeCustomizer, moduleName }
             className={({ isActive }) =>
               clsx(
                 'rounded-md px-4 py-2 text-sm font-medium',
-                isActive ? 'bg-brand/10 text-brand' : 'hover:bg-black/5',
+                isActive ? 'bg-brand/10 text-brand-header' : 'hover:bg-black/5',
               )
             }
             style={({ isActive }) => (isActive ? undefined : { color: headerTextColor })}
@@ -63,19 +61,11 @@ export function AppHeader({ onToggleSidebar, onOpenThemeCustomizer, moduleName }
 
       {/* Right: language + organisation selectors */}
       <div className="flex items-center gap-2">
+        <button type="button" onClick={onOpenThemeCustomizer} className="rounded-md p-2 hover:bg-black/5" style={{ color: headerTextColor }} aria-label="Customize theme" title="Customize theme">
+          <Palette size={19} />
+        </button>
         <LanguageSelector />
         <OrgSelector />
-        <button
-          type="button"
-          onClick={onOpenThemeCustomizer}
-          className="rounded-md p-2 hover:bg-black/5"
-          style={{ color: headerTextColor }}
-          aria-label="Customize theme"
-          title="Customize theme"
-        >
-          <Palette size={18} />
-        </button>
-        <UserMenu />
       </div>
     </header>
   );
