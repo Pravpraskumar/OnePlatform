@@ -17,9 +17,12 @@
     "dev:prime": "npm run start:dev --workspace @platform/prime-service",
     "dev:frontend": "npm run dev --workspace @platform/frontend",
     "db:core:migrate": "npm run db:migrate --workspace @platform/core-backend",
-    "db:core:seed": "npm run db:seed --workspace @platform/core-backend"
+    "db:core:seed": "npm run db:seed --workspace @platform/core-backend",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui"
   },
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
     "concurrently": "^9.0.1"
   },
   "engines": {

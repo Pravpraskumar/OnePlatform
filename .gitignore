@@ -6,3 +6,5 @@ build/
 *.log
 drizzle/
 .DS_Store
+playwright-report/
+test-results/
