@@ -94,6 +94,33 @@ async function main() {
     await db.insert(products).values(p).onConflictDoNothing({ target: products.code });
   }
   const [creditGuardProduct] = await db.select().from(products).where(eq(products.code, 'CreditGuard'));
+  if (creditGuardProduct) {
+    const creditGuardRoleDefs = [
+      {
+        name: 'CreditGuard Requestor',
+        scope: 'global' as const,
+        description: 'Creates and manages CreditGuard requests.',
+      },
+      {
+        name: 'CreditGuard Reviewer',
+        scope: 'global' as const,
+        description: 'Reviews CreditGuard requests and portfolio reports.',
+      },
+    ];
+    for (const role of creditGuardRoleDefs) {
+      await db
+        .insert(roles)
+        .values({ ...role, productId: creditGuardProduct.id })
+        .onConflictDoUpdate({
+          target: roles.name,
+          set: {
+            scope: role.scope,
+            description: role.description,
+            productId: creditGuardProduct.id,
+          },
+        });
+    }
+  }
 
   // --- Public (Global) menus ---
   const publicMenus = [
@@ -115,6 +142,27 @@ async function main() {
     .from(roles)
     .where(eq(roles.name, 'Organisation Administrator'));
   const [generalUserRole] = await db.select().from(roles).where(eq(roles.name, 'General User'));
+  const [creditGuardRequestorRole] = await db.select().from(roles).where(eq(roles.name, 'CreditGuard Requestor'));
+  const [creditGuardReviewerRole] = await db.select().from(roles).where(eq(roles.name, 'CreditGuard Reviewer'));
+
+  for (const role of [creditGuardRequestorRole, creditGuardReviewerRole]) {
+    if (!role) continue;
+    const assignments = await db
+      .select({ id: userRoles.id, userId: userRoles.userId, orgId: userRoles.orgId })
+      .from(userRoles)
+      .where(eq(userRoles.roleId, role.id));
+    for (const userId of new Set(assignments.map(({ userId }) => userId))) {
+      if (!assignments.some((assignment) => assignment.userId === userId && assignment.orgId === null)) {
+        await db.insert(userRoles).values({ userId, roleId: role.id, orgId: null });
+      }
+    }
+    const scopedAssignmentIds = assignments.filter(({ orgId }) => orgId !== null).map(({ id }) => id);
+    if (scopedAssignmentIds.length > 0) {
+      await db
+        .delete(userRoles)
+        .where(and(eq(userRoles.roleId, role.id), inArray(userRoles.id, scopedAssignmentIds)));
+    }
+  }
 
   type MenuDef = {
     name: string;
@@ -159,14 +207,30 @@ async function main() {
     return row;
   };
 
-  const grant = async (menuId: string, roleIds: (string | undefined)[]) => {
+  const grant = async (
+    menuId: string,
+    roleIds: (string | undefined)[],
+    accessMode: 'readonly' | 'editable' = 'editable',
+  ) => {
     for (const roleId of roleIds) {
       if (!roleId) continue;
-      await db.insert(rolesMenus).values({ roleId, menuId }).onConflictDoNothing();
+      await db
+        .insert(rolesMenus)
+        .values({ roleId, menuId, accessMode })
+        .onConflictDoUpdate({
+          target: [rolesMenus.roleId, rolesMenus.menuId],
+          set: { accessMode },
+        });
     }
   };
 
-  const everyRole = [globalAdminRole?.id, orgAdminRole?.id, generalUserRole?.id];
+  const everyRole = [
+    globalAdminRole?.id,
+    orgAdminRole?.id,
+    generalUserRole?.id,
+    creditGuardRequestorRole?.id,
+    creditGuardReviewerRole?.id,
+  ];
 
   // Workspace group — visible to all authenticated roles.
   const workspace = await upsertMenu({ name: 'Workspace', route: null, icon: 'layout-dashboard', displayOrder: 1 });
@@ -177,16 +241,47 @@ async function main() {
   await grant(productsMenu.id, everyRole);
 
   if (creditGuardProduct) {
+    const creditGuardRoles = [
+      globalAdminRole?.id,
+      orgAdminRole?.id,
+      creditGuardRequestorRole?.id,
+      creditGuardReviewerRole?.id,
+    ];
     const creditGuardMenu = await upsertMenu({ name: 'CreditGuard', route: null, icon: 'shield-check', productId: creditGuardProduct.id, displayOrder: 5 });
-    await grant(creditGuardMenu.id, everyRole);
+    await grant(creditGuardMenu.id, creditGuardRoles);
     const creditGuardOverviewMenu = await upsertMenu({ name: 'Overview', route: '/app/product/CreditGuard', icon: 'layout-dashboard', parentId: creditGuardMenu.id, productId: creditGuardProduct.id, displayOrder: 1 });
-    await grant(creditGuardOverviewMenu.id, everyRole);
+    await grant(creditGuardOverviewMenu.id, creditGuardRoles, 'readonly');
     const creditGuardRequestsMenu = await upsertMenu({ name: 'Requests', route: '/app/product/CreditGuard/requests', icon: 'file-pen-line', parentId: creditGuardMenu.id, productId: creditGuardProduct.id, displayOrder: 2 });
-    await grant(creditGuardRequestsMenu.id, everyRole);
-    const creditGuardApplicationSetupMenu = await upsertMenu({ name: 'Application Setup', route: null, icon: 'settings-2', parentId: creditGuardMenu.id, productId: creditGuardProduct.id, displayOrder: 3 });
+    await grant(creditGuardRequestsMenu.id, [globalAdminRole?.id, orgAdminRole?.id, creditGuardRequestorRole?.id, creditGuardReviewerRole?.id]);
+    const creditGuardReportsMenu = await upsertMenu({ name: 'Reports', route: '/app/product/CreditGuard/reports', icon: 'chart-no-axes-combined', parentId: creditGuardMenu.id, productId: creditGuardProduct.id, displayOrder: 3 });
+    await grant(creditGuardReportsMenu.id, [globalAdminRole?.id, orgAdminRole?.id, creditGuardReviewerRole?.id], 'readonly');
+    const creditGuardApplicationSetupMenu = await upsertMenu({ name: 'Application Setup', route: null, icon: 'settings-2', parentId: creditGuardMenu.id, productId: creditGuardProduct.id, displayOrder: 4 });
     await grant(creditGuardApplicationSetupMenu.id, [globalAdminRole?.id, orgAdminRole?.id]);
     const creditGuardBusinessEntitiesMenu = await upsertMenu({ name: 'Business Entities', route: '/app/product/CreditGuard/application-setup/business-entities', icon: 'building-2', parentId: creditGuardApplicationSetupMenu.id, productId: creditGuardProduct.id, displayOrder: 1 });
     await grant(creditGuardBusinessEntitiesMenu.id, [globalAdminRole?.id, orgAdminRole?.id]);
+    const creditGuardModuleUsersMenu = await upsertMenu({ name: 'Module Users', route: '/app/product/CreditGuard/application-setup/module-users', icon: 'users-round', parentId: creditGuardApplicationSetupMenu.id, productId: creditGuardProduct.id, displayOrder: 2 });
+    await grant(creditGuardModuleUsersMenu.id, [globalAdminRole?.id, orgAdminRole?.id]);
+    const creditGuardIntegrationMenu = await upsertMenu({ name: 'Integration', route: '/app/product/CreditGuard/application-setup/integration', icon: 'key-round', parentId: creditGuardApplicationSetupMenu.id, productId: creditGuardProduct.id, displayOrder: 3 });
+    await grant(creditGuardIntegrationMenu.id, [globalAdminRole?.id, orgAdminRole?.id]);
+    if (generalUserRole) {
+      await db
+        .delete(rolesMenus)
+        .where(
+          and(
+            eq(rolesMenus.roleId, generalUserRole.id),
+            inArray(rolesMenus.menuId, [
+              creditGuardMenu.id,
+              creditGuardOverviewMenu.id,
+              creditGuardRequestsMenu.id,
+              creditGuardReportsMenu.id,
+              creditGuardApplicationSetupMenu.id,
+              creditGuardBusinessEntitiesMenu.id,
+              creditGuardModuleUsersMenu.id,
+              creditGuardIntegrationMenu.id,
+            ]),
+          ),
+        );
+    }
   }
 
   // Preserve the existing parent ID (and any custom role assignments) while renaming it.
@@ -227,6 +322,8 @@ async function main() {
   await grant(sessionsMenu.id, [globalAdminRole?.id]);
   const settingsMenu = await upsertMenu({ name: 'Settings', route: '/admin/settings', icon: 'settings', parentId: globalAdministration.id, displayOrder: 9 });
   await grant(settingsMenu.id, [globalAdminRole?.id]);
+  const emailLogsMenu = await upsertMenu({ name: 'Email Delivery Logs', route: '/admin/email-logs', icon: 'mail-check', parentId: globalAdministration.id, displayOrder: 10 });
+  await grant(emailLogsMenu.id, [globalAdminRole?.id]);
   await db.delete(menus).where(eq(menus.route, '/admin/user-settings'));
 
   const organisationProjectsMenu = await upsertMenu({ name: 'Organisation Projects', route: '/org/projects', icon: 'folder-cog', parentId: administration.id, displayOrder: 1 });

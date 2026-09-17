@@ -27,5 +27,11 @@
   },
   "engines": {
     "node": ">=20"
+  },
+  "dependencies": {
+    "@typespec/ts-http-runtime": "0.3.4"
+  },
+  "overrides": {
+    "@typespec/ts-http-runtime": "0.3.4"
   }
 }

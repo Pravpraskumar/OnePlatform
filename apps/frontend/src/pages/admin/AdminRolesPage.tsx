@@ -332,7 +332,7 @@ export function AdminRolesPage() {
               {role.isSystem && <LockKeyhole size={14} />}
               <span className="min-w-0 flex-1">
                 <span className="block truncate">{role.name}</span>
-                <span className="block truncate text-xs text-slate-400">{role.isSystem ? 'Global' : role.productName}</span>
+                <span className="block truncate text-xs text-slate-400">{role.productName ?? 'Global'}</span>
               </span>
             </button>
           ))}
@@ -362,7 +362,7 @@ export function AdminRolesPage() {
                 <label className="text-sm text-slate-600">Name<input required disabled={selectedRole?.isSystem} className={`mt-1 ${field}`} value={draft.name} onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))} /></label>
                 <label className="text-sm text-slate-600">{selectedRole?.isSystem ? 'Role type' : 'Module'}
                   {selectedRole?.isSystem ? (
-                    <input disabled className={`mt-1 ${field}`} value="Global role" />
+                    <input disabled className={`mt-1 ${field}`} value={selectedRole.productName ?? 'Global role'} />
                   ) : (
                     <select required className={`mt-1 ${field}`} value={draft.productId} onChange={(event) => setDraft((current) => ({ ...current, productId: event.target.value }))}>
                       <option value="" disabled>Select a module</option>

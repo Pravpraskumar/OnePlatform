@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowDown, ArrowUp, ArrowUpDown, Columns3, Pencil, Plus, Save, Search, Trash2, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpDown, ClipboardCheck, Columns3, Pencil, Plus, Save, Search, UserCheck, Trash2, X } from 'lucide-react';
 import type { Product } from '@platform/shared';
 import { Link, useNavigate, useOutletContext } from 'react-router-dom';
 import { Button } from '@/components/ui/Button';
@@ -9,7 +9,7 @@ import { useProductSession } from '@/hooks/useProductSession';
 import { useOrg } from '@/state/OrgProvider';
 import { notify } from '@/lib/systemEvents';
 
-type RequestStatus = 'Draft' | 'Under Review' | 'Approved' | 'Issued' | 'Rejected' | 'Closed';
+type RequestStatus = 'Draft' | 'Under Review' | 'Reviewed' | 'Sent for Approval' | 'Approved' | 'Issued' | 'Rejected' | 'Closed';
 type SortDirection = 'asc' | 'desc';
 
 interface CreditGuardRequest {
@@ -77,6 +77,7 @@ export function CreditGuardRequestsPage() {
   const [draft, setDraft] = useState<RequestDraft | null>(null);
   const [loadingRows, setLoadingRows] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState('');
 
   useEffect(() => {
@@ -195,6 +196,13 @@ export function CreditGuardRequestsPage() {
 
   const requestEditUrl = (row: CreditGuardRequest) =>
     `/app/product/CreditGuard/requests/${row.id}/edit${projectId ? `?projectId=${encodeURIComponent(projectId)}` : ''}`;
+  const selectedRequest = rows.find((row) => row.id === selectedRequestId) ?? null;
+  const assignApproversUrl = selectedRequest
+    ? `/app/product/CreditGuard/requests/${selectedRequest.id}/approvers${projectId ? `?projectId=${encodeURIComponent(projectId)}` : ''}`
+    : '';
+  const approvalUrl = selectedRequest
+    ? `/app/product/CreditGuard/requests/${selectedRequest.id}/approval${projectId ? `?projectId=${encodeURIComponent(projectId)}` : ''}`
+    : '';
 
   const renderCell = (row: CreditGuardRequest, key: ColumnKey, editing: boolean) => {
     if (key === 'notes' && editing && draft) {
@@ -224,6 +232,12 @@ export function CreditGuardRequestsPage() {
           {!projectRequired && <div><h1 className="text-2xl font-semibold text-slate-900">Requests</h1><p className="mt-1 text-sm text-slate-500">Create and manage CreditGuard financial security requests.</p></div>}
           <div className="mt-6 flex flex-wrap items-center gap-3">
             <Button onClick={startNew} disabled={!!editingId}><Plus size={16} />New request</Button>
+            <Button variant="secondary" disabled={selectedRequest?.status !== 'Reviewed'} onClick={() => assignApproversUrl && navigate(assignApproversUrl)}><UserCheck size={16} />Assign Approvers</Button>
+            {selectedRequest && ['Reviewed', 'Sent for Approval'].includes(selectedRequest.status) && (
+              <Button variant="secondary" onClick={() => navigate(approvalUrl)}>
+                <ClipboardCheck size={16} />{selectedRequest.status === 'Reviewed' ? 'Initiate Approval' : 'Approval Status'}
+              </Button>
+            )}
             <span className="text-sm text-slate-500">{displayedRows.length} of {rows.length} requests</span>
             <details className="relative ml-auto">
               <summary className="flex cursor-pointer list-none items-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700"><Columns3 size={16} />Columns</summary>
@@ -235,10 +249,12 @@ export function CreditGuardRequestsPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
+                  <th className="w-12 px-3 py-2"><span className="sr-only">Select</span></th>
                   {columns.filter((column) => visibleColumns.has(column.key)).map((column) => <th key={column.key} className={`${column.minWidth} px-3 py-2`}><button type="button" onClick={() => changeSort(column.key)} className="flex w-full items-center justify-between gap-2 font-semibold">{column.label}{sort.key === column.key ? sort.direction === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} /> : <ArrowUpDown size={14} className="text-slate-300" />}</button></th>)}
                   <th className="sticky right-0 min-w-24 bg-slate-50 px-3 py-2 text-right">Actions</th>
                 </tr>
                 <tr className="border-b border-slate-200 bg-white">
+                  <th className="px-3 py-2" />
                   {columns.filter((column) => visibleColumns.has(column.key)).map((column) => <th key={column.key} className="px-3 py-2"><div className="relative"><Search size={13} className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400" /><input value={filters[column.key] ?? ''} onChange={(event) => setFilters((current) => ({ ...current, [column.key]: event.target.value }))} placeholder={`Filter ${column.label}`} className="w-full rounded border border-slate-200 py-1.5 pl-7 pr-2 text-xs font-normal outline-none focus:border-brand" /></div></th>)}
                   <th className="sticky right-0 bg-white px-3 py-2"><button type="button" onClick={() => setFilters({})} className="text-xs font-medium text-brand">Clear</button></th>
                 </tr>
@@ -246,10 +262,11 @@ export function CreditGuardRequestsPage() {
               <tbody>
                 {displayedRows.map((row) => {
                   const editing = editingId === row.id;
-                  return <tr key={row.id} className="border-b border-slate-100 hover:bg-slate-50/70">{columns.filter((column) => visibleColumns.has(column.key)).map((column) => <td key={column.key} className="px-3 py-3 align-top text-slate-700">{renderCell(row, column.key, editing)}</td>)}<td className="sticky right-0 bg-white px-3 py-2"><div className="flex justify-end gap-1">{editing ? <><button type="button" onClick={() => void save()} disabled={saving} className="rounded p-2 text-emerald-700 hover:bg-emerald-50" title="Save"><Save size={16} /></button><button type="button" onClick={() => { setEditingId(null); setDraft(null); }} className="rounded p-2 text-slate-500 hover:bg-slate-100" title="Cancel"><X size={16} /></button></> : <><button type="button" onClick={() => startEdit(row)} disabled={!!editingId} className="rounded p-2 text-slate-500 hover:bg-slate-100" title="Edit notes"><Pencil size={16} /></button><button type="button" onClick={() => void remove(row)} disabled={!!editingId} className="rounded p-2 text-slate-500 hover:bg-red-50 hover:text-red-600" title="Delete"><Trash2 size={16} /></button></>}</div></td></tr>;
+                  const selected = selectedRequestId === row.id;
+                  return <tr key={row.id} aria-selected={selected} onClick={(event) => { if (!(event.target as HTMLElement).closest('a, button, input, select, textarea, label, summary')) setSelectedRequestId((current) => current === row.id ? null : row.id); }} className={`cursor-pointer border-b border-slate-100 ${selected ? 'bg-brand/10 hover:bg-brand/15' : 'hover:bg-slate-50/70'}`}><td className="px-3 py-3"><input type="checkbox" checked={selected} onChange={() => setSelectedRequestId((current) => current === row.id ? null : row.id)} aria-label={`Select request ${row.requestNumber}`} className="h-4 w-4 accent-brand" /></td>{columns.filter((column) => visibleColumns.has(column.key)).map((column) => <td key={column.key} className="px-3 py-3 align-top text-slate-700">{renderCell(row, column.key, editing)}</td>)}<td className={`sticky right-0 px-3 py-2 ${selected ? 'bg-brand/10' : 'bg-white'}`}><div className="flex justify-end gap-1">{editing ? <><button type="button" onClick={() => void save()} disabled={saving} className="rounded p-2 text-emerald-700 hover:bg-emerald-50" title="Save"><Save size={16} /></button><button type="button" onClick={() => { setEditingId(null); setDraft(null); }} className="rounded p-2 text-slate-500 hover:bg-slate-100" title="Cancel"><X size={16} /></button></> : <><button type="button" onClick={() => startEdit(row)} disabled={!!editingId || ['Under Review', 'Reviewed', 'Sent for Approval'].includes(row.status)} className="rounded p-2 text-slate-500 hover:bg-slate-100 disabled:opacity-40" title="Edit notes"><Pencil size={16} /></button><button type="button" onClick={() => void remove(row)} disabled={!!editingId || ['Under Review', 'Reviewed', 'Sent for Approval'].includes(row.status)} className="rounded p-2 text-slate-500 hover:bg-red-50 hover:text-red-600 disabled:opacity-40" title="Delete"><Trash2 size={16} /></button></>}</div></td></tr>;
                 })}
-                {!loadingRows && displayedRows.length === 0 && <tr><td colSpan={visibleColumns.size + 1} className="px-4 py-10 text-center text-slate-400">No requests match the current filters.</td></tr>}
-                {loadingRows && <tr><td colSpan={visibleColumns.size + 1} className="px-4 py-10 text-center text-slate-400">Loading requests...</td></tr>}
+                {!loadingRows && displayedRows.length === 0 && <tr><td colSpan={visibleColumns.size + 2} className="px-4 py-10 text-center text-slate-400">No requests match the current filters.</td></tr>}
+                {loadingRows && <tr><td colSpan={visibleColumns.size + 2} className="px-4 py-10 text-center text-slate-400">Loading requests...</td></tr>}
               </tbody>
             </table>
           </Card>

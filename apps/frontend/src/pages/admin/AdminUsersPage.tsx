@@ -112,9 +112,7 @@ export function AdminUsersPage() {
           <h1 className="text-2xl font-semibold text-slate-900">User Assignments</h1>
           <p className="mt-1 text-slate-500">Assign global and module roles to platform users.</p>
         </div>
-        <Button variant="secondary" onClick={load}>
-          Refresh
-        </Button>
+        <Button variant="secondary" onClick={load}>Refresh</Button>
       </div>
 
       {error && <p className="mt-4 text-sm text-red-600">{error}</p>}

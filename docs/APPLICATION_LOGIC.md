@@ -81,10 +81,14 @@ Core role names seeded by default:
 - `Global Administrator`
 - `Organisation Administrator`
 - `General User`
+- `CreditGuard Requestor`
+- `CreditGuard Reviewer`
+
+CreditGuard roles are module-specific: they reference the CreditGuard product and are assigned once per user rather than per organisation. Both roles can open the workspace, product overview, and Requests only when the selected organisation has an active CreditGuard module assignment. Requestors can create and manage requests. Reviewers can review requests and open Reports. Application Setup remains limited to global and organisation administrators. Screen grants are navigation controls; guarded CreditGuard workflow endpoints introspect the bearer token through core and verify organisation membership because hiding navigation is not authorization.
 
 Global role assignments have no organisation ID. Organisation authority is also represented by membership: `Owner`, `Admin`, or `Member`.
 
-The sidebar is data-driven from `GET /api/menus/mine?orgId=...`. Menu trees contain route, icon, display order, product link, and optional `readonly`/`editable` access. The frontend hides organisation-administration routes from ordinary members and global-only routes outside the global organisation. Backend guards remain the security boundary; hiding navigation is not authorization.
+The sidebar is data-driven from `GET /api/menus/mine?orgId=...`. Menu trees contain route, icon, display order, product link, and optional `readonly`/`editable` access. Product-linked menus are returned only when the selected organisation has an active module assignment within its validity window. The frontend hides organisation-administration routes from ordinary members and global-only routes outside the global organisation. Backend guards remain the security boundary; hiding navigation is not authorization.
 
 ## 6. Route inventory
 
@@ -107,9 +111,13 @@ The sidebar is data-driven from `GET /api/menus/mine?orgId=...`. Menu trees cont
 | `/app/product/:code` | Product lookup, project selection, license acquisition, product landing |
 | `/app/product/CreditGuard/requests` | Request list, filtering, sorting, configurable columns, Notes-only inline editing, request-number links to full editing, and delete |
 | `/app/product/CreditGuard/requests/new` | Initial company guarantee form; saves a server-controlled Draft without approval fields |
-| `/app/product/CreditGuard/requests/:requestId/edit` | Loads and updates the complete saved request, including requesting-division and approval fields |
+| `/app/product/CreditGuard/requests/:requestId/edit` | Edits Draft requests; Under Review is read-only except attachments, and Reviewed is fully read-only |
+| `/app/product/CreditGuard/requests/:requestId/approvers` | Assigns one configured contact to each required approval role for a Reviewed request |
+| `/app/product/CreditGuard/requests/:requestId/approval` | Selects request PDFs, sends a finalized approval chain to Signit, and displays the persisted envelope and approver actions |
 | `/app/product/CreditGuard/reports` | Request counts and portfolio aggregates |
 | `/app/product/CreditGuard/application-setup/business-entities` | Permission-aware business entity CRUD |
+| `/app/product/CreditGuard/application-setup/module-users` | Organisation-scoped approver CRUD by default, plus a read-only, role-filterable view of eligible module users |
+| `/app/product/CreditGuard/application-setup/integration` | Administrator-only Signit authorization-key configuration |
 | `/app/resources` | Shared resources |
 | `/account/settings` | Profile, password, account deletion |
 
@@ -127,13 +135,14 @@ The sidebar is data-driven from `GET /api/menus/mine?orgId=...`. Menu trees cont
 
 | Route | Behavior |
 | --- | --- |
-| `/admin/users` | Identity records, search/filter, bulk status, edit |
+| `/admin/users` | Create local users without initial access; search, filter, bulk-status, and edit identity records |
 | `/admin/user-assignments` | Status and global/org role assignments |
 | `/admin/user-settings` | Preferences, effective access, activity |
 | `/admin/organisations` | Organisation CRUD and status |
 | `/admin/connections` | Encrypted product database connection settings |
 | `/admin/licenses` | Organisation-product license assignment |
 | `/admin/settings` | Default org, session timeout, branding/banner |
+| `/admin/email-logs` | Global Administrator view of outbound module email attempts and delivery status |
 | `/admin/roles` | Role CRUD and menu access modes |
 | `/admin/sessions` | Active session monitoring |
 | `/admin/projects` | Global project CRUD |
@@ -163,7 +172,7 @@ Concurrent session creation is transactional. Core locks the organisation-module
 | Domain | Base path | Responsibilities |
 | --- | --- | --- |
 | Auth/account | `/auth`, `/account` | login, registration, current user, profile, password, deletion, theme |
-| Users | `/users` | users, status, roles, settings, effective access |
+| Users | `/users` | Global Administrator-only user creation and management, status, roles, settings, and effective access |
 | Organisations | `/organisations` | tenants, membership, teams, modules, project allocations |
 | Products | `/products` | catalog and encrypted connection configuration |
 | Projects | `/projects` | global project catalog and managers |
@@ -179,9 +188,31 @@ All tenant-sensitive queries must be scoped by organisation and checked against 
 
 CreditGuard requests belong to an organisation and may belong to a project. The list flow opens a valid product session before querying `/creditguard-api/requests?orgId=...&projectId=...`.
 
-Request fields include request number, instrument type, applicant, beneficiary name, beneficiary address, amount, currency, status, requester, due/review dates, notes, and detailed company-guarantee fields. Beneficiary name remains on the request summary while beneficiary address is stored in `request_details.beneficiary_address`; the address column is nullable for compatibility with existing requests but required when request details are created or updated. Status values are `Draft`, `Under Review`, `Approved`, `Issued`, `Rejected`, and `Closed`. Amount is non-negative. The detailed form supports single- or multi-entity modes; single mode restricts each entity selection to one value. The legacy Attachments text field is not shown during New Request creation.
+Request fields include request number, instrument type, applicant, beneficiary name, beneficiary address, amount, currency, status, requester, due/review dates, notes, and detailed company-guarantee fields. Beneficiary name remains on the request summary while beneficiary address is stored in `request_details.beneficiary_address`; the address column is nullable for compatibility with existing requests but required when request details are created or updated. Status values are `Draft`, `Under Review`, `Reviewed`, `Approved`, `Issued`, `Rejected`, and `Closed`. Amount is non-negative. The detailed form supports single- or multi-entity modes; single mode restricts each entity selection to one value.
+
+New requests do not expose attachment controls. The request must first be saved as a Draft, after which PDF and DOCX documents can be uploaded from the edit form using the generated request ID. Attachment metadata is stored in `request_attachments`; binary content is stored through the configured local-filesystem or private Azure Blob provider. Users can open PDFs in a browser tab, download/open DOCX files through the configured desktop application, and delete attachments while the request is Draft or Under Review. Reviewed requests allow opening existing attachments but reject upload and deletion in both the UI and product API. A Draft cannot transition to `Under Review` without at least one attachment and an eligible Module User assigned the `CreditGuard Reviewer` role; the dedicated submit action saves current edits, records the reviewer snapshot, and atomically changes the CreditGuard request status. Uploads default to 10 MB per document and 10 documents per request, configurable through environment variables.
+
+Attachment routes are `GET/POST /requests/:id/attachments`, `GET /requests/:id/attachments/:attachmentId/content`, and `DELETE /requests/:id/attachments/:attachmentId`. Every lookup includes the request and organisation identifier. Workflow identity endpoints use `ProductAuthGuard`, which forwards the bearer token to core `GET /auth/me` and `GET /organisations/mine`; `CORE_API_URL` configures that trusted core endpoint. Attachment reads and Under Review mutations still rely on the approved calling tier and organisation-scoped lookup, so the CreditGuard service must not be exposed directly.
 
 Business entities contain job-code entity, segment, legal entity name, ledger, and inventory organisation metadata. `(jobCodeEntity, segment1, legalEntityName)` is unique. The page finds its own menu grant; `readonly` hides mutation controls.
+
+Module Users is restricted to administrators with its Application Setup menu grant. The page opens on Approvers. Registered Users is read-only and can be filtered by assigned product role. Registered users come from the active team assigned to the organisation's CreditGuard module; when no team is assigned, all active organisation members are eligible. Core serves these rows and their product role assignments through `GET /organisations/:orgId/modules/:productId/users`, after verifying the authenticated administrator's organisation authority and active module assignment.
+
+Integration is restricted to organisation Owners/Admins and Global Administrators with its CreditGuard Application Setup menu grant. Core routes `GET/PUT /organisations/:orgId/modules/:productId/integrations/signit` verify that authority and an active organisation module assignment. Configuration contains a required HTTP or HTTPS Signit Base URL and an authorization key encrypted with AES-256-GCM using `CONNECTION_SECRET_KEY`; the Base URL may be the server root or end in `/api/v2`, and both forms resolve to one `/api/v2/envelope/create` path. GET and PUT responses expose the non-secret Base URL, `authorizationKeyConfigured`, and update metadata. The browser never receives a saved key or ciphertext, a blank replacement retains an existing key, and an explicit clear operation removes it. Server-side consumers may decrypt the key only immediately before an outbound Signit request and must not log it. HTTPS remains recommended outside trusted local development networks.
+
+The Edit Request reviewer list is served by authenticated core route `GET /notifications/reviewers?orgId=...&productId=...` and contains only active, same-organisation, team-eligible Module Users assigned the product's `CreditGuard Reviewer` role. Guarded CreditGuard route `POST /requests/:id/submit-for-review` permits only the requestor or an organisation/global administrator. For a Draft, it requires the exact generated `<request number> latest.pdf` attachment, stores the selected reviewer's user ID, name, and email snapshot, and sets `submitted_for_review_at` and status `Under Review` in one product-database transaction. Until review is completed, the same authorized actors may select a different eligible reviewer; the locked transaction keeps status `Under Review`, replaces the reviewer snapshot, refreshes `submitted_for_review_at`, and returns the previous reviewer ID. Request fields remain immutable while Under Review, but attachments remain editable. Core route `POST /notifications/reviewer-reassignment` resolves the former reviewer from organisation membership, revalidates the replacement against the active CreditGuard Reviewer role, and sends the former reviewer a pullback notice logged as `Review Reassignment`. The replacement separately receives the normal `Request Review` notification. A failure in either email is visible and logged without reverting the auditable reviewer change or suppressing the other delivery attempt.
+
+The Attachments block action **Attach Request** calls guarded `POST /requests/:id/attach-request`, creating a new McDermott-branded PDF from persisted request and business-detail fields and storing it through the private document provider as `<request number> latest.pdf`. Each page header embeds the approved McDermott logo immediately before the McDermott name at the same visual height as the brand text. The generated document uses a compact form grid modeled on the controlled request form: related entity/date and contract fields share rows, labels are bold, and supporting narratives remain on page one when they fit or move together to a second page when more space is required. Selected Parent, Requesting, and Contracting entity identifiers are resolved server-side to legal entity names; generation fails if a referenced entity is no longer available. For a Draft, the frontend saves current form values before generation. Repeating the action atomically replaces the previous latest attachment and removes its old stored object after commit. The generated PDF does not contain approver identities, approval values, or approval dates. Requests already beyond Draft that predate this requirement and have no generated PDF receive a non-downloadable `previously attached` compatibility marker in attachment listings; no broken storage metadata is persisted. Guarded `POST /requests/:id/review-done` independently verifies active organisation membership and changes only an Under Review request assigned to the authenticated current reviewer to Reviewed, recording reviewer identity/time. A former reviewer loses completion authority immediately after reassignment. Existing uploaded files remain separate attachments. Generic request updates reject both Under Review and Reviewed records.
+
+After the status transition, authenticated core route `POST /notifications/request-review` revalidates the reviewer against the organisation, active module allocation, assigned team, and `CreditGuard Reviewer` role. It sends base request identification through the default enabled SMTP configuration, falling back to enabled priority order. New SMTP profiles default Authentication to `None`, which uses an unauthenticated relay. Selecting `Username and password` requires both credential values; switching back to `None` removes the stored encrypted password. TLS certificates are verified by default. A Global Administrator can temporarily enable `Ignore TLS certificate errors (unsafe)` per SMTP profile; `NEXT_PRIVATE_SMTP_UNSAFE_IGNORE_TLS=true` is an emergency server-wide override for all profiles. Both options set Nodemailer's `tls.rejectUnauthorized` to `false` without disabling TLS itself. Installing the issuing CA through the runtime trust store remains the preferred fix. Delivery failure does not revert the auditable `Under Review` transition: the user receives a warning and Global Administrators can inspect the failed attempt. Core writes sent and failed attempts to `email_delivery_logs`, including module, event, request reference, recipient, subject, SMTP profile name, provider message ID, bounded safe error text, initiating user, and timestamps. Safe error details include the provider message, error code, SMTP status and response, SMTP command, and relevant network operation/server fields; credential-like values and credential-bearing URLs are redacted before storage. Passwords, stack traces, and message bodies are never logged. `GET /notifications/email-logs` is Global Administrator-only and returns the latest 200 attempts with optional module and status filters. Global Administrators can retry a failed attempt through `POST /notifications/email-logs/:id/retry`; the server uses the stored recipient and reference, rejects non-failed IDs, and creates a new immutable delivery-log row for the retry result.
+
+Approvers are standalone CreditGuard contacts rather than platform user identities. `GET/POST /approvers`, `PATCH /approvers/:id`, and `DELETE /approvers/:id` require an organisation identifier, and every lookup and mutation is scoped by it. Approver email is unique within an organisation. After review, the requestor or an organisation/global administrator can use guarded `GET/PUT /requests/:id/approver-assignments` to maintain an ordered approval chain. New chains default required titles from instrument type, PCG language, and parent entity type; users may add, edit, delete, and reorder pending rows. Title-only rows persist before representatives are assigned. Persisted rows contain sequence, title, optional same-organisation representative, server-controlled approval status, action date, and approval link. Sequence values must be contiguous from one, titles must come from the supported list, and every assigned representative is revalidated against the request organisation.
+
+The requestor or an administrator can finalize a saved, fully assigned chain through guarded `POST /requests/:id/approver-assignments/finalize` while the request is `Reviewed`. A warning requires confirmation before the server records `approvers_finalized_at` and `approvers_finalized_by_user_id`; finalized chains reject structural updates. Organisation Owners/Admins and Global Administrators can use guarded `POST /requests/:id/approver-assignments/modify` to clear finalization only while the request remains `Reviewed` and no approver has actioned the chain. Once any approver has approved or rejected, both UI and API permanently prevent structural changes to preserve audit evidence. `requested_by_user_id` is nullable for migration compatibility; an administrator must assign or finalize approvers for a legacy request with no attributable requestor identity. Migration `0016_milky_paladin.sql` adds nullable finalization audit columns without changing existing chains. Rollback removes the UI and endpoints first; retain the audit columns unless finalized-state evidence is no longer required and its loss has been approved.
+
+For a selected `Reviewed` request, the Requests page shows `Initiate Approval`; after successful submission the same action is labeled `Approval Status`. Draft and Under Review requests do not expose this action. The approval screen lists request PDF attachments only, instrument type, beneficiary, the finalized ordered approvers, and their server-owned action status/date/link. Guarded `POST /requests/:id/initiate-approval` accepts selected attachment IDs, revalidates request ownership, `Reviewed` status, finalized and fully assigned pending approvers, and PDF ownership, then reads document bytes from private CreditGuard storage. The Signit title is `<instrument type> - <beneficiary>`, `externalId` is the CreditGuard request ID, `meta.signingOrder` is `SEQUENTIAL`, and each assigned representative becomes an `APPROVER` recipient whose numeric `signingOrder` equals the persisted contiguous approver sequence.
+
+CreditGuard forwards the generated payload and selected PDFs to the authenticated core Signit broker while holding a row lock to prevent duplicate concurrent initiation. The broker requires both the user's bearer token and `CREDITGUARD_INTERNAL_API_KEY`, revalidates active organisation membership/module allocation and PDF content, decrypts the Signit authorization key only immediately before calling the normalized `/api/v2/envelope/create` endpoint, and never returns the key. After creation, core posts `{ envelopeId }` to `/api/v2/envelope/distribute` and requires the response envelope ID plus one unique HTTP(S) signing URL for every distinct requested recipient email. CreditGuard independently validates that complete email set, stores each URL in the matching approver assignment's `approval_link`, then records `signit_envelope_id`, `approval_initiated_by_user_id`, and `approval_initiated_at` and changes status to `Sent for Approval`. Failures return a bounded broker message, roll back CreditGuard persistence, and leave the request Reviewed. Sent requests are immutable through request, attachment, approver, and list-edit APIs. The Approval Status screen exposes Refresh, which calls guarded `POST /requests/:id/refresh-approval`; core retrieves `/api/v2/envelope/:envelopeId`, normalizes signed/approved/completed recipients to `approved`, rejected/declined recipients to `rejected`, and all other provider states to `pending`. CreditGuard requires exactly the request's approver email set before updating `approval_status` and valid provider action timestamps, leaving the request workflow status unchanged. Organisation Owners/Admins and Global Administrators can recall a sent request from its Approval Status screen. Guarded `POST /requests/:id/recall-approval` locks and revalidates the request before the core broker posts `{ envelopeId }` to Signit's normalized `/api/v2/envelope/delete`; only a Signit `{ success: true }` response clears `signit_envelope_id` and approver signing links and restores `Reviewed`, while initiation audit fields remain as historical evidence. Any rejection or ambiguous response leaves the request unchanged. Migration `0017_yellow_magneto.sql` adds nullable Signit audit fields. Deploy core and CreditGuard with the same long random service key before enabling initiation, refresh, or recall; rollback removes the Refresh UI and refresh endpoints first, with no data migration required.
 
 Reports derive, in the browser, total/open request counts, counts by status/instrument, and amount totals grouped by currency.
 
@@ -189,20 +220,22 @@ Reports derive, in the browser, total/open request counts, counts by status/inst
 
 ### Core database
 
-Key entities are users, organisations, organisation users, teams, products, organisation modules, projects, project modules, user-project/module assignments, roles, user roles, menus, role menus, product database connections, sessions, app settings, and user preferences.
+Key entities are users, organisations, organisation users, teams, products, organisation modules, module user designations, projects, project modules, user-project/module assignments, roles, user roles, menus, role menus, product database connections, sessions, app settings, SMTP configurations, email delivery logs, and user preferences.
 
 Important relationships:
 
 - Users and organisations are many-to-many through organisation membership.
 - Organisation modules connect a tenant to a licensed product and seat count.
+- Module user designations reference a core organisation, product, and eligible user.
 - Project modules sub-allocate product seats.
 - Sessions reference user, organisation, optional product, and optional project.
 - Role-menu rows include access mode.
+- Organisation product integrations store provider-specific, tenant-scoped configuration secrets encrypted by core.
 - Cascades remove dependent assignments when their owner is deleted.
 
 ### Product databases
 
-- CreditGuard stores requests, request details, and business entities.
+- CreditGuard stores requests, reviewer assignment snapshots, request details, business entities, attachments, organisation-scoped approver contacts, and Signit envelope initiation references.
 - PRIME currently stores only a placeholder row type.
 - Cross-database operations are not distributed transactions.
 
@@ -210,7 +243,7 @@ Important relationships:
 
 The idempotent core seed:
 
-1. Creates the three default roles.
+1. Creates the three platform roles and the CreditGuard Requestor and Reviewer product roles.
 2. Creates or updates the local admin and password hash.
 3. Creates the Global Organisation and owner membership.
 4. Creates CreditGuard and PRIME products.
@@ -224,14 +257,16 @@ Seed reruns restore seeded role-menu grants. A route rename may leave an obsolet
 
 | Application | Variables |
 | --- | --- |
-| Core | `CORE_DATABASE_URL`, `PORT`, `CORS_ORIGIN`, `B2C_TENANT_NAME`, `B2C_POLICY_NAME`, `B2C_CLIENT_ID`, optional `B2C_ISSUER`/`B2C_JWKS_URI`, `LOCAL_JWT_SECRET`, `LOCAL_JWT_EXPIRES_IN`, `CONNECTION_SECRET_KEY`, `SESSION_HEARTBEAT_WINDOW_SECONDS`, seed admin values |
-| CreditGuard | `CREDITGUARD_DATABASE_URL`, `PORT`, `CORS_ORIGIN` |
+| Core | `CORE_DATABASE_URL`, `PORT`, `CORS_ORIGIN`, `B2C_TENANT_NAME`, `B2C_POLICY_NAME`, `B2C_CLIENT_ID`, optional `B2C_ISSUER`/`B2C_JWKS_URI`, `LOCAL_JWT_SECRET`, `LOCAL_JWT_EXPIRES_IN`, `CONNECTION_SECRET_KEY`, `CREDITGUARD_INTERNAL_API_KEY`, `SESSION_HEARTBEAT_WINDOW_SECONDS`, emergency-only `NEXT_PRIVATE_SMTP_UNSAFE_IGNORE_TLS`, seed admin values |
+| CreditGuard | `CREDITGUARD_DATABASE_URL`, `CORE_API_URL`, `CREDITGUARD_INTERNAL_API_KEY`, `PORT`, `CORS_ORIGIN`, `DOCUMENT_STORAGE_PROVIDER`, `DOCUMENT_LOCAL_ROOT`, `DOCUMENT_MAX_FILE_SIZE_MB`, `DOCUMENT_MAX_FILES_PER_REQUEST`, `AZURE_STORAGE_ACCOUNT_NAME`, `AZURE_STORAGE_CONTAINER`, optional `AZURE_STORAGE_CONNECTION_STRING` |
 | PRIME | `PRIME_DATABASE_URL`, `PORT`, `CORS_ORIGIN` |
 | Frontend | `VITE_APP_NAME`, `VITE_API_BASE`, B2C tenant/policy/client/scope values |
 
 ## 13. Testing contract
 
 Playwright tests use browser-level API interception and seeded local storage. Shared mocks reproduce authentication, organisation, products, menus, sessions, and product records. This exercises routing, React state, forms, network payloads, and error handling without external identity or database dependencies.
+
+Core migrations `0022_thankful_lockjaw.sql` and `0023_secret_bill_hollister.sql` must be applied before the Integration route is enabled and the core seed rerun to add its menu grant. Rollback removes the route/menu grant and application code first; integration columns or the table should only be dropped after confirming that stored Signit configuration is no longer required.
 
 When adding a user-visible route or mutation:
 

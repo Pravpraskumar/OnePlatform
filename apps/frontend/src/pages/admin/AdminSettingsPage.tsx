@@ -32,12 +32,15 @@ interface SmtpConfiguration {
   port: number;
   username: string;
   password: string;
-  hasPassword: boolean;
+  passwordConfigured: boolean;
+  authentication: 'none' | 'credentials';
   fromName: string;
   fromEmail: string;
   secure: boolean;
+  ignoreTlsCertificateErrors: boolean;
   enabled: boolean;
   isDefault: boolean;
+  priority: number;
 }
 
 const field = 'mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm';
@@ -55,7 +58,13 @@ export function AdminSettingsPage() {
     api.get<Settings>('/settings').then(setSettings).catch(() => setSettings(null));
     api.get<Org[]>('/organisations').then(setOrgs).catch(() => setOrgs([]));
     api.get<Omit<SmtpConfiguration, 'clientId' | 'password'>[]>('/settings/smtp')
-      .then((configurations) => setSmtpConfigurations(configurations.map((configuration) => ({ ...configuration, clientId: configuration.id ?? crypto.randomUUID(), password: '' }))))
+      .then((configurations) => setSmtpConfigurations(configurations.map((configuration) => ({
+        ...configuration,
+        clientId: configuration.id ?? crypto.randomUUID(),
+        username: configuration.username ?? '',
+        password: '',
+        authentication: configuration.username || configuration.passwordConfigured ? 'credentials' : 'none',
+      }))))
       .catch(() => setSmtpConfigurations([]));
   }, [api]);
 
@@ -73,12 +82,15 @@ export function AdminSettingsPage() {
       port: 587,
       username: '',
       password: '',
-      hasPassword: false,
+      passwordConfigured: false,
+      authentication: 'none',
       fromName: '',
       fromEmail: '',
       secure: true,
+      ignoreTlsCertificateErrors: false,
       enabled: true,
       isDefault: current.length === 0,
+      priority: current.length,
     }]);
   };
 
@@ -107,9 +119,20 @@ export function AdminSettingsPage() {
   });
 
   const saveSmtp = async () => {
-    const invalid = smtpConfigurations.find((configuration) => !configuration.name.trim() || !configuration.host.trim() || !configuration.fromName.trim() || !configuration.fromEmail.trim() || (!configuration.hasPassword && !configuration.password));
+    const invalid = smtpConfigurations.find((configuration) => !configuration.name.trim() || !configuration.host.trim() || !configuration.fromName.trim() || !configuration.fromEmail.trim());
     if (invalid) {
-      notify('Complete all required SMTP fields, including a password for new configurations.', 'warning');
+      notify('Complete all required SMTP fields.', 'warning');
+      return;
+    }
+    const incompleteCredentials = smtpConfigurations.find((configuration) => {
+      if (configuration.authentication === 'none') return false;
+      const hasUsername = !!configuration.username.trim();
+      const hasSuppliedPassword = !!configuration.password;
+      return (!hasUsername && hasSuppliedPassword)
+        || (hasUsername && !hasSuppliedPassword && !configuration.passwordConfigured);
+    });
+    if (incompleteCredentials) {
+      notify('Provide both username and password to use SMTP authentication, or leave both blank.', 'warning');
       return;
     }
     if (smtpConfigurations.length > 0 && smtpConfigurations.filter((configuration) => configuration.isDefault).length !== 1) {
@@ -119,9 +142,20 @@ export function AdminSettingsPage() {
     setSavingSmtp(true);
     try {
       const saved = await api.put<Omit<SmtpConfiguration, 'clientId' | 'password'>[]>('/settings/smtp', {
-        configurations: smtpConfigurations.map(({ clientId: _clientId, hasPassword: _hasPassword, ...configuration }) => configuration),
+        configurations: smtpConfigurations.map(({ clientId: _clientId, passwordConfigured: _passwordConfigured, authentication, ...configuration }, priority) => ({
+          ...configuration,
+          username: authentication === 'credentials' ? configuration.username : '',
+          password: authentication === 'credentials' ? configuration.password : '',
+          priority,
+        })),
       });
-      setSmtpConfigurations(saved.map((configuration) => ({ ...configuration, clientId: configuration.id ?? crypto.randomUUID(), password: '' })));
+      setSmtpConfigurations(saved.map((configuration) => ({
+        ...configuration,
+        clientId: configuration.id ?? crypto.randomUUID(),
+        username: configuration.username ?? '',
+        password: '',
+        authentication: configuration.username || configuration.passwordConfigured ? 'credentials' : 'none',
+      })));
       notify('SMTP configurations saved.', 'success');
     } catch {
       // API errors are displayed by the global notification host.
@@ -254,8 +288,9 @@ export function AdminSettingsPage() {
                 <label className="text-sm text-slate-600">Configuration name<span className="text-red-600"> *</span><input className={field} value={configuration.name} onChange={(event) => patchSmtp(configuration.clientId, { name: event.target.value })} /></label>
                 <label className="text-sm text-slate-600 sm:col-span-2">SMTP host<span className="text-red-600"> *</span><input className={field} placeholder="smtp.example.com" value={configuration.host} onChange={(event) => patchSmtp(configuration.clientId, { host: event.target.value })} /></label>
                 <label className="text-sm text-slate-600">Port<span className="text-red-600"> *</span><input type="number" min={1} max={65535} className={field} value={configuration.port} onChange={(event) => patchSmtp(configuration.clientId, { port: Number(event.target.value) })} /></label>
-                <label className="text-sm text-slate-600">Username<input autoComplete="off" className={field} value={configuration.username} onChange={(event) => patchSmtp(configuration.clientId, { username: event.target.value })} /></label>
-                <label className="text-sm text-slate-600">Password{!configuration.hasPassword && <span className="text-red-600"> *</span>}<input type="password" autoComplete="new-password" className={field} placeholder={configuration.hasPassword ? 'Leave blank to keep current password' : 'Enter password'} value={configuration.password} onChange={(event) => patchSmtp(configuration.clientId, { password: event.target.value })} /></label>
+                <label className="text-sm text-slate-600">Authentication<select className={field} value={configuration.authentication} onChange={(event) => patchSmtp(configuration.clientId, event.target.value === 'none' ? { authentication: 'none', username: '', password: '', passwordConfigured: false } : { authentication: 'credentials' })}><option value="none">None</option><option value="credentials">Username and password</option></select></label>
+                {configuration.authentication === 'credentials' && <label className="text-sm text-slate-600">Username<span className="text-red-600"> *</span><input autoComplete="off" className={field} value={configuration.username} onChange={(event) => patchSmtp(configuration.clientId, { username: event.target.value })} /></label>}
+                {configuration.authentication === 'credentials' && <label className="text-sm text-slate-600">Password{!configuration.passwordConfigured && <span className="text-red-600"> *</span>}<input type="password" autoComplete="new-password" className={field} placeholder={configuration.passwordConfigured ? 'Leave blank to keep current password' : 'Enter password'} value={configuration.password} onChange={(event) => patchSmtp(configuration.clientId, { password: event.target.value })} /></label>}
                 <label className="text-sm text-slate-600">From name<span className="text-red-600"> *</span><input className={field} value={configuration.fromName} onChange={(event) => patchSmtp(configuration.clientId, { fromName: event.target.value })} /></label>
                 <label className="text-sm text-slate-600 sm:col-span-2">From email<span className="text-red-600"> *</span><input type="email" className={field} value={configuration.fromEmail} onChange={(event) => patchSmtp(configuration.clientId, { fromEmail: event.target.value })} /></label>
               </div>
@@ -263,6 +298,7 @@ export function AdminSettingsPage() {
                 <label className="flex items-center gap-2 text-sm text-slate-700"><input type="radio" name="default-smtp" checked={configuration.isDefault} onChange={() => makeDefault(configuration.clientId)} className="accent-brand" />Primary/default</label>
                 <label className="flex items-center gap-2 text-sm text-slate-700"><input type="checkbox" checked={configuration.enabled} disabled={configuration.isDefault} onChange={(event) => patchSmtp(configuration.clientId, { enabled: event.target.checked })} className="accent-brand" />Enabled</label>
                 <label className="flex items-center gap-2 text-sm text-slate-700"><input type="checkbox" checked={configuration.secure} onChange={(event) => patchSmtp(configuration.clientId, { secure: event.target.checked })} className="accent-brand" />Use TLS</label>
+                <label className="flex items-center gap-2 text-sm text-red-700"><input type="checkbox" checked={configuration.ignoreTlsCertificateErrors} onChange={(event) => patchSmtp(configuration.clientId, { ignoreTlsCertificateErrors: event.target.checked })} className="accent-red-600" />Ignore TLS certificate errors (unsafe)</label>
               </div>
             </div>
           ))}

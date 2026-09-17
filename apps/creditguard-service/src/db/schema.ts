@@ -1,4 +1,5 @@
-import { boolean, date, integer, jsonb, numeric, pgTable, text, timestamp, uniqueIndex, uuid, varchar } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
+import { boolean, check, date, index, integer, jsonb, numeric, pgTable, text, timestamp, uniqueIndex, uuid, varchar } from 'drizzle-orm/pg-core';
 
 // Placeholder table so the product database has an initial migration.
 // Real CreditGuard (Parent Company Guarantee) domain tables land here later.
@@ -22,6 +23,18 @@ export const requests = pgTable(
     currency: varchar('currency', { length: 3 }).notNull().default('USD'),
     status: varchar('status', { length: 40 }).notNull().default('Draft'),
     requestedBy: varchar('requested_by', { length: 200 }).notNull(),
+    requestedByUserId: uuid('requested_by_user_id'),
+    assignedReviewerUserId: uuid('assigned_reviewer_user_id'),
+    assignedReviewerName: varchar('assigned_reviewer_name', { length: 200 }),
+    assignedReviewerEmail: varchar('assigned_reviewer_email', { length: 320 }),
+    submittedForReviewAt: timestamp('submitted_for_review_at', { withTimezone: true }),
+    reviewedByUserId: uuid('reviewed_by_user_id'),
+    reviewedAt: timestamp('reviewed_at', { withTimezone: true }),
+    approversFinalizedByUserId: uuid('approvers_finalized_by_user_id'),
+    approversFinalizedAt: timestamp('approvers_finalized_at', { withTimezone: true }),
+    signitEnvelopeId: varchar('signit_envelope_id', { length: 500 }),
+    approvalInitiatedByUserId: uuid('approval_initiated_by_user_id'),
+    approvalInitiatedAt: timestamp('approval_initiated_at', { withTimezone: true }),
     dueDate: date('due_date'),
     nextReviewDate: date('next_review_date'),
     notes: text('notes'),
@@ -46,6 +59,7 @@ export const requestDetails = pgTable(
     dateSubmitted: date('date_submitted').notNull(),
     requestingEntity: jsonb('requesting_entity').$type<string[]>().notNull(),
     contractingEntity: jsonb('contracting_entity').$type<string[]>().notNull(),
+    parentEntityType: varchar('parent_entity_type', { length: 20 }).notNull().default('localEntity'),
     proposalContractReference: varchar('proposal_contract_reference', { length: 300 }).notNull(),
     currentContractStatus: varchar('current_contract_status', { length: 200 }).notNull(),
     beneficiaryAddress: text('beneficiary_address'),
@@ -79,6 +93,33 @@ export const requestDetails = pgTable(
   }),
 );
 
+export const requestAttachments = pgTable(
+  'request_attachments',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    requestId: uuid('request_id')
+      .notNull()
+      .references(() => requests.id, { onDelete: 'cascade' }),
+    orgId: uuid('org_id').notNull(),
+    originalFileName: varchar('original_file_name', { length: 300 }).notNull(),
+    mimeType: varchar('mime_type', { length: 100 }).notNull(),
+    fileSizeBytes: integer('file_size_bytes').notNull(),
+    storageKey: text('storage_key').notNull().unique(),
+    sha256: varchar('sha256', { length: 64 }).notNull(),
+    uploadedBy: varchar('uploaded_by', { length: 200 }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    requestIdx: index('request_attachments_request_idx').on(table.requestId),
+    orgRequestIdx: index('request_attachments_org_request_idx').on(table.orgId, table.requestId),
+    mimeTypeCheck: check(
+      'request_attachments_mime_type_check',
+      sql`${table.mimeType} in ('application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')`,
+    ),
+    fileSizeCheck: check('request_attachments_file_size_check', sql`${table.fileSizeBytes} >= 0`),
+  }),
+);
+
 export const businessEntities = pgTable(
   'business_entities',
   {
@@ -98,5 +139,41 @@ export const businessEntities = pgTable(
       table.segment1,
       table.legalEntityName,
     ),
+  }),
+);
+
+export const approvers = pgTable(
+  'approvers',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id').notNull(),
+    name: varchar('name', { length: 200 }).notNull(),
+    email: varchar('email', { length: 320 }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    orgIdx: index('approvers_org_idx').on(table.orgId),
+    orgEmailIdx: uniqueIndex('approvers_org_email_idx').on(table.orgId, table.email),
+  }),
+);
+
+export const requestApprovers = pgTable(
+  'request_approvers',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    requestId: uuid('request_id').notNull().references(() => requests.id, { onDelete: 'cascade' }),
+    approverId: uuid('approver_id').references(() => approvers.id, { onDelete: 'restrict' }),
+    sequenceOrder: integer('sequence_order').notNull(),
+    title: varchar('title', { length: 50 }).notNull(),
+    approvalStatus: varchar('approval_status', { length: 20 }).notNull().default('pending'),
+    actionedDate: timestamp('actioned_date', { withTimezone: true }),
+    approvalLink: text('approval_link'),
+    assignedByUserId: uuid('assigned_by_user_id').notNull(),
+    assignedAt: timestamp('assigned_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    requestSequenceIdx: uniqueIndex('request_approvers_request_sequence_idx').on(table.requestId, table.sequenceOrder),
+    approverIdx: index('request_approvers_approver_idx').on(table.approverId),
   }),
 );

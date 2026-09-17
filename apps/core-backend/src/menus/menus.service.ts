@@ -1,9 +1,9 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, eq, inArray } from 'drizzle-orm';
+import { and, eq, gt, inArray, isNull, lte, or } from 'drizzle-orm';
 import { CORE_DB } from '../db/database.module';
 import type { CoreDb } from '../db';
 import { Menu } from '../db/schema';
-import { menus, organisationUsers, roles, rolesMenus, userRoles } from '../db/schema';
+import { menus, organisationModules, organisationUsers, roles, rolesMenus, userRoles } from '../db/schema';
 import type { AuthUser } from '../auth/auth-user.interface';
 
 export interface MenuNode extends Menu {
@@ -86,11 +86,29 @@ export class MenusService {
       });
     }
 
+    const assignedProductIds = new Set<string>();
+    if (orgId) {
+      const now = new Date();
+      const moduleRows = await this.db
+        .select({ productId: organisationModules.productId })
+        .from(organisationModules)
+        .where(
+          and(
+            eq(organisationModules.orgId, orgId),
+            eq(organisationModules.status, 'active'),
+            lte(organisationModules.validFrom, now),
+            or(isNull(organisationModules.validTo), gt(organisationModules.validTo, now)),
+          ),
+        );
+      moduleRows.forEach(({ productId }) => assignedProductIds.add(productId));
+    }
+
     const rows = await this.db.select().from(menus).where(eq(menus.isActive, true));
     const organisationAdminRoutes = new Set(['/org/members', '/admin/sessions']);
     const visible = rows.filter(
       (menu) =>
         accessByMenuId.has(menu.id) &&
+        (!menu.productId || assignedProductIds.has(menu.productId)) &&
         (canManageOrganisation || !menu.route || !organisationAdminRoutes.has(menu.route)),
       ).map((menu) => ({ ...menu, accessMode: accessByMenuId.get(menu.id) }));
     return this.buildTree(visible);

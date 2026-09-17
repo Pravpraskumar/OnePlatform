@@ -1,9 +1,10 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
-import { Pencil, Search, Settings, X } from 'lucide-react';
+import { Pencil, Search, Settings, UserPlus, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { useApi } from '@/lib/ApiProvider';
+import { notify } from '@/lib/systemEvents';
 
 type UserStatus = 'active' | 'suspended' | 'pending';
 
@@ -32,6 +33,10 @@ interface UserDraft {
   status: UserStatus;
 }
 
+interface NewUserDraft extends UserDraft {
+  password: string;
+}
+
 interface ManagedOrganisation {
   id: string;
   name: string;
@@ -44,6 +49,14 @@ const statuses: { value: UserStatus; label: string }[] = [
 ];
 
 const field = 'mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/10';
+const emptyNewUser: NewUserDraft = {
+  firstName: '',
+  lastName: '',
+  email: '',
+  username: '',
+  password: '',
+  status: 'active',
+};
 
 function errorMessage(error: unknown, fallback: string) {
   const message = (error as Error).message;
@@ -61,6 +74,8 @@ export function GlobalUsersPage() {
   const [bulkStatus, setBulkStatus] = useState<UserStatus>('active');
   const [editing, setEditing] = useState<GlobalUser | null>(null);
   const [draft, setDraft] = useState<UserDraft | null>(null);
+  const [creating, setCreating] = useState(false);
+  const [newUser, setNewUser] = useState<NewUserDraft>(emptyNewUser);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
@@ -81,6 +96,15 @@ export function GlobalUsersPage() {
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+    if (!creating) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setCreating(false);
+    };
+    window.addEventListener('keydown', closeOnEscape);
+    return () => window.removeEventListener('keydown', closeOnEscape);
+  }, [creating]);
 
   const filteredUsers = useMemo(() => {
     const term = query.trim().toLowerCase();
@@ -155,6 +179,23 @@ export function GlobalUsersPage() {
     }
   };
 
+  const createUser = async (event: FormEvent) => {
+    event.preventDefault();
+    setBusy(true);
+    setError('');
+    try {
+      await api.post('/users', newUser);
+      setCreating(false);
+      setNewUser(emptyNewUser);
+      await load();
+      notify('User created successfully.', 'success');
+    } catch (createError) {
+      setError(errorMessage(createError, 'User could not be created.'));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <div>
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
@@ -162,10 +203,12 @@ export function GlobalUsersPage() {
           <h1 className="text-2xl font-semibold text-slate-900">Global Users</h1>
           <p className="mt-1 text-slate-500">Manage user identity, account status, and platform details.</p>
         </div>
-        <label className="relative block w-full lg:w-80">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input className="w-full rounded-md border border-slate-300 py-2 pl-9 pr-3 text-sm" placeholder="Search users" value={query} onChange={(event) => setQuery(event.target.value)} />
-        </label>
+        <div className="w-full lg:w-auto">
+          <label className="relative block min-w-0 flex-1 lg:w-80 lg:flex-none">
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input className="w-full rounded-md border border-slate-300 py-2 pl-9 pr-3 text-sm" placeholder="Search users" value={query} onChange={(event) => setQuery(event.target.value)} />
+          </label>
+        </div>
       </div>
 
       {error && <p className="mt-4 text-sm text-red-600">{error}</p>}
@@ -177,6 +220,7 @@ export function GlobalUsersPage() {
         </select>
         <Button disabled={busy || selectedIds.size === 0} onClick={applyBulkStatus}>Apply to selected</Button>
         <Button variant="secondary" onClick={load}>Refresh</Button>
+        <Button onClick={() => { setNewUser(emptyNewUser); setCreating(true); }}><UserPlus size={16} />New user</Button>
         <label className="flex w-full items-center gap-2 text-sm font-medium text-slate-700 sm:ml-auto sm:w-auto">
           Organisation
           <select
@@ -228,6 +272,26 @@ export function GlobalUsersPage() {
           </tbody>
         </table>
       </Card>
+
+      {creating && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setCreating(false); }}>
+          <form onSubmit={createUser} className="w-full max-w-2xl rounded-md bg-white shadow-xl" role="dialog" aria-modal="true" aria-labelledby="create-global-user-title">
+            <div className="flex items-start justify-between border-b border-slate-200 px-6 py-4">
+              <div><h2 id="create-global-user-title" className="text-lg font-semibold text-slate-900">New user</h2><p className="mt-1 text-sm text-slate-500">Create a local account. Roles and organisation access are assigned separately.</p></div>
+              <button type="button" onClick={() => setCreating(false)} className="rounded-md p-2 text-slate-500 hover:bg-slate-100" aria-label="Close new user dialog" title="Close"><X size={18} /></button>
+            </div>
+            <div className="grid gap-4 p-6 sm:grid-cols-2">
+              <label className="text-sm text-slate-600">First name<input required maxLength={100} className={field} value={newUser.firstName} onChange={(event) => setNewUser((current) => ({ ...current, firstName: event.target.value }))} /></label>
+              <label className="text-sm text-slate-600">Last name<input required maxLength={100} className={field} value={newUser.lastName} onChange={(event) => setNewUser((current) => ({ ...current, lastName: event.target.value }))} /></label>
+              <label className="text-sm text-slate-600 sm:col-span-2">Email<input required type="email" className={field} value={newUser.email} onChange={(event) => setNewUser((current) => ({ ...current, email: event.target.value }))} /></label>
+              <label className="text-sm text-slate-600">Username<input required minLength={3} maxLength={100} pattern="[A-Za-z0-9._-]+" className={field} value={newUser.username} onChange={(event) => setNewUser((current) => ({ ...current, username: event.target.value }))} /></label>
+              <label className="text-sm text-slate-600">Status<select className={field} value={newUser.status} onChange={(event) => setNewUser((current) => ({ ...current, status: event.target.value as UserStatus }))}>{statuses.map((status) => <option key={status.value} value={status.value}>{status.label}</option>)}</select></label>
+              <label className="text-sm text-slate-600 sm:col-span-2">Initial password<input required type="password" minLength={8} maxLength={128} autoComplete="new-password" className={field} value={newUser.password} onChange={(event) => setNewUser((current) => ({ ...current, password: event.target.value }))} /></label>
+            </div>
+            <div className="flex justify-end gap-2 border-t border-slate-200 px-6 py-4"><Button type="button" variant="secondary" onClick={() => setCreating(false)}>Cancel</Button><Button type="submit" disabled={busy}>{busy ? 'Creating...' : 'Create user'}</Button></div>
+          </form>
+        </div>
+      )}
 
       {editing && draft && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onMouseDown={(event) => { if (event.target === event.currentTarget) setEditing(null); }}>

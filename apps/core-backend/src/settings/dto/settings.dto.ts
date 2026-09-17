@@ -74,6 +74,9 @@ export class SmtpConfigurationDto {
   secure!: boolean;
 
   @IsBoolean()
+  ignoreTlsCertificateErrors!: boolean;
+
+  @IsBoolean()
   enabled!: boolean;
 
   @IsBoolean()

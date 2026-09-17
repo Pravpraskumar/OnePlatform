@@ -4,6 +4,7 @@ import { CORE_DB } from '../db/database.module';
 import type { CoreDb } from '../db';
 import { organisationModules, organisations, organisationTeams, organisationTeamUsers, organisationUserProjects, organisationUsers, products, projects, roles, sessions, userRoles, users } from '../db/schema';
 import { SettingsService } from '../settings/settings.service';
+import { hashPassword } from '../common/password';
 
 export type EntityStatus = 'active' | 'suspended' | 'pending';
 
@@ -55,6 +56,55 @@ export class UsersService {
       if (existing.length === 0) {
         await this.db.insert(userRoles).values({ userId, roleId: generalRole.id, orgId: null });
       }
+    }
+  }
+
+  async create(input: {
+    firstName: string;
+    lastName: string;
+    email: string;
+    username: string;
+    status: EntityStatus;
+    password: string;
+  }) {
+    const email = input.email.toLowerCase().trim();
+    const username = input.username.toLowerCase().trim();
+    const [emailOwner] = await this.db.select({ id: users.id }).from(users).where(eq(users.email, email));
+    if (emailOwner) throw new ConflictException('That email address is already in use');
+    const [usernameOwner] = await this.db.select({ id: users.id }).from(users).where(eq(users.username, username));
+    if (usernameOwner) throw new ConflictException('That username is already in use');
+
+    const firstName = input.firstName.trim();
+    const lastName = input.lastName.trim();
+    try {
+      const [created] = await this.db
+        .insert(users)
+        .values({
+          firstName,
+          lastName,
+          displayName: `${firstName} ${lastName}`.trim(),
+          email,
+          username,
+          passwordHash: await hashPassword(input.password),
+          status: input.status,
+        })
+        .returning({
+          id: users.id,
+          firstName: users.firstName,
+          lastName: users.lastName,
+          displayName: users.displayName,
+          email: users.email,
+          username: users.username,
+          status: users.status,
+          createdAt: users.createdAt,
+          updatedAt: users.updatedAt,
+        });
+      return { ...created, hasPassword: true, isB2c: false, lastSignedInAt: null, globalRoles: [], roleAssignments: [], organisations: [] };
+    } catch (error) {
+      if ((error as { code?: string }).code === '23505') {
+        throw new ConflictException('That email address or username is already in use');
+      }
+      throw error;
     }
   }
 

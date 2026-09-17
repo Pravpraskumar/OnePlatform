@@ -1,4 +1,5 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Put } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, Headers, Param, Patch, Post, Put, UploadedFiles, UseInterceptors } from '@nestjs/common';
+import { FilesInterceptor } from '@nestjs/platform-express';
 import { OrganisationsService } from './organisations.service';
 import {
   AddOrganisationMemberDto,
@@ -13,10 +14,13 @@ import {
   UpdateOrganisationMemberProjectsDto,
   UpdateOrganisationTeamDto,
   UpdateOrganisationTeamMembersDto,
+  UpdateModuleUserDesignationDto,
+  UpdateProductIntegrationDto,
   UpdateOrganisationDto,
 } from './dto/organisation.dto';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { AuthUser } from '../auth/auth-user.interface';
+import { Public } from '../auth/public.decorator';
 import { Roles } from '../auth/roles.decorator';
 
 @Controller('organisations')
@@ -125,6 +129,117 @@ export class OrganisationsController {
     @CurrentUser() user: AuthUser,
   ) {
     return this.orgs.assignModuleTeam(id, productId, dto.teamId ?? null, user);
+  }
+
+  @Get(':id/modules/:productId/users')
+  moduleUsers(
+    @Param('id') id: string,
+    @Param('productId') productId: string,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.orgs.listModuleUsers(id, productId, user);
+  }
+
+  @Put(':id/modules/:productId/users/:userId/designation')
+  updateModuleUserDesignation(
+    @Param('id') id: string,
+    @Param('productId') productId: string,
+    @Param('userId') userId: string,
+    @Body() dto: UpdateModuleUserDesignationDto,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.orgs.updateModuleUserDesignation(id, productId, userId, dto.designation, user);
+  }
+
+  @Get(':id/modules/:productId/integrations/signit')
+  signitIntegration(
+    @Param('id') id: string,
+    @Param('productId') productId: string,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.orgs.getProductIntegration(id, productId, 'signit', user);
+  }
+
+  @Put(':id/modules/:productId/integrations/signit')
+  updateSignitIntegration(
+    @Param('id') id: string,
+    @Param('productId') productId: string,
+    @Body() dto: UpdateProductIntegrationDto,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.orgs.updateProductIntegration(id, productId, 'signit', dto, user);
+  }
+
+  @Post(':id/modules/:productId/integrations/signit/webhook-token')
+  generateSignitWebhookToken(
+    @Param('id') id: string,
+    @Param('productId') productId: string,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.orgs.generateSignitWebhookToken(id, productId, user);
+  }
+
+  @Delete(':id/modules/:productId/integrations/signit/webhook-token')
+  revokeSignitWebhookToken(
+    @Param('id') id: string,
+    @Param('productId') productId: string,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.orgs.revokeSignitWebhookToken(id, productId, user);
+  }
+
+  @Public()
+  @Post(':id/modules/:productId/integrations/signit/webhook')
+  processSignitWebhook(
+    @Param('id') id: string,
+    @Param('productId') productId: string,
+    @Body('envelopeId') envelopeId: unknown,
+    @Headers('x-webhook-token') webhookToken: string | undefined,
+  ) {
+    if (typeof envelopeId !== 'string') throw new BadRequestException('A valid Signit envelope ID is required');
+    return this.orgs.processSignitWebhook(id, productId, envelopeId, webhookToken);
+  }
+
+  @Post(':id/modules/:productId/integrations/signit/envelopes')
+  @UseInterceptors(FilesInterceptor('files', 10, { limits: { fileSize: 10 * 1024 * 1024 } }))
+  createSignitEnvelope(
+    @Param('id') id: string,
+    @Param('productId') productId: string,
+    @Body('payload') payloadJson: string | undefined,
+    @UploadedFiles() files: Array<{ originalname: string; mimetype: string; buffer: Buffer }> | undefined,
+    @Headers('x-creditguard-service-key') serviceKey: string | undefined,
+    @CurrentUser() user: AuthUser,
+  ) {
+    if (!payloadJson) throw new BadRequestException('Signit payload is required');
+    let payload: unknown;
+    try {
+      payload = JSON.parse(payloadJson);
+    } catch {
+      throw new BadRequestException('Signit payload must be valid JSON');
+    }
+    return this.orgs.createSignitEnvelope(id, productId, payload, files ?? [], serviceKey, user);
+  }
+
+  @Post(':id/modules/:productId/integrations/signit/envelopes/delete')
+  deleteSignitEnvelope(
+    @Param('id') id: string,
+    @Param('productId') productId: string,
+    @Body('envelopeId') envelopeId: unknown,
+    @Headers('x-creditguard-service-key') serviceKey: string | undefined,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.orgs.deleteSignitEnvelope(id, productId, envelopeId, serviceKey, user);
+  }
+
+  @Get(':id/modules/:productId/integrations/signit/envelopes/:envelopeId')
+  getSignitEnvelope(
+    @Param('id') id: string,
+    @Param('productId') productId: string,
+    @Param('envelopeId') envelopeId: string,
+    @Headers('x-creditguard-service-key') serviceKey: string | undefined,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.orgs.getSignitEnvelope(id, productId, envelopeId, serviceKey, user);
   }
 
   @Get(':id/project-modules')

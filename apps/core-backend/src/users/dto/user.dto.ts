@@ -31,6 +31,13 @@ export class UpdateUserDto {
   status!: 'active' | 'suspended' | 'pending';
 }
 
+export class CreateUserDto extends UpdateUserDto {
+  @IsString()
+  @MinLength(8)
+  @MaxLength(128)
+  password!: string;
+}
+
 export class BulkUserStatusDto extends UpdateStatusDto {
   @IsArray()
   @ArrayMinSize(1)

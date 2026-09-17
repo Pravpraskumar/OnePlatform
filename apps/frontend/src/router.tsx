@@ -11,7 +11,11 @@ import { ProductLandingPage } from '@/pages/app/ProductLandingPage';
 import { CreditGuardRequestsPage } from '@/pages/app/creditguard/CreditGuardRequestsPage';
 import { CreditGuardNewRequestPage } from '@/pages/app/creditguard/CreditGuardNewRequestPage';
 import { CreditGuardEditRequestPage } from '@/pages/app/creditguard/CreditGuardEditRequestPage';
+import { CreditGuardRequestApproversPage } from '@/pages/app/creditguard/CreditGuardRequestApproversPage';
+import { CreditGuardRequestApprovalPage } from '@/pages/app/creditguard/CreditGuardRequestApprovalPage';
 import { CreditGuardBusinessEntitiesPage } from '@/pages/app/creditguard/CreditGuardBusinessEntitiesPage';
+import { CreditGuardModuleUsersPage } from '@/pages/app/creditguard/CreditGuardModuleUsersPage';
+import { CreditGuardIntegrationPage } from '@/pages/app/creditguard/CreditGuardIntegrationPage';
 import { CreditGuardReportsPage } from '@/pages/app/creditguard/CreditGuardReportsPage';
 import { ResourcesPage } from '@/pages/app/ResourcesPage';
 import { AdminConnectionsPage } from '@/pages/admin/AdminConnectionsPage';
@@ -21,6 +25,7 @@ import { AdminOrganisationsPage } from '@/pages/admin/AdminOrganisationsPage';
 import { AdminSettingsPage } from '@/pages/admin/AdminSettingsPage';
 import { AdminRolesPage } from '@/pages/admin/AdminRolesPage';
 import { AdminSessionsPage } from '@/pages/admin/AdminSessionsPage';
+import { AdminEmailLogsPage } from '@/pages/admin/AdminEmailLogsPage';
 import { AdminProjectsPage } from '@/pages/admin/AdminProjectsPage';
 import { GlobalUsersPage } from '@/pages/admin/GlobalUsersPage';
 import { UserSettingsPage } from '@/pages/admin/UserSettingsPage';
@@ -50,8 +55,12 @@ export const router = createBrowserRouter([
       { path: '/app/product/CreditGuard/requests', element: <CreditGuardRequestsPage /> },
       { path: '/app/product/CreditGuard/requests/new', element: <CreditGuardNewRequestPage /> },
       { path: '/app/product/CreditGuard/requests/:requestId/edit', element: <CreditGuardEditRequestPage /> },
+      { path: '/app/product/CreditGuard/requests/:requestId/approvers', element: <CreditGuardRequestApproversPage /> },
+      { path: '/app/product/CreditGuard/requests/:requestId/approval', element: <CreditGuardRequestApprovalPage /> },
       { path: '/app/product/CreditGuard/reports', element: <CreditGuardReportsPage /> },
       { path: '/app/product/CreditGuard/application-setup/business-entities', element: <CreditGuardBusinessEntitiesPage /> },
+      { path: '/app/product/CreditGuard/application-setup/module-users', element: <CreditGuardModuleUsersPage /> },
+      { path: '/app/product/CreditGuard/application-setup/integration', element: <CreditGuardIntegrationPage /> },
       { path: '/app/resources', element: <ResourcesPage /> },
       { path: '/account/settings', element: <AccountSettingsPage /> },
       { path: '/admin/users', element: <GlobalUsersPage /> },
@@ -63,6 +72,7 @@ export const router = createBrowserRouter([
       { path: '/admin/settings', element: <AdminSettingsPage /> },
       { path: '/admin/roles', element: <AdminRolesPage /> },
       { path: '/admin/sessions', element: <AdminSessionsPage /> },
+      { path: '/admin/email-logs', element: <AdminEmailLogsPage /> },
       { path: '/admin/projects', element: <AdminProjectsPage /> },
       { path: '/org/settings', element: <OrgSettingsPage /> },
       { path: '/org/teams', element: <OrgTeamsPage /> },

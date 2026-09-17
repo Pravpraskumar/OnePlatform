@@ -1,6 +1,6 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import { UsersService } from './users.service';
-import { BulkUserStatusDto, RoleDto, RoleScopeDto, UpdateStatusDto, UpdateUserDto, UpdateUserNotificationPreferencesDto } from './dto/user.dto';
+import { BulkUserStatusDto, CreateUserDto, RoleDto, RoleScopeDto, UpdateStatusDto, UpdateUserDto, UpdateUserNotificationPreferencesDto } from './dto/user.dto';
 import { Roles } from '../auth/roles.decorator';
 
 // Global user administration; restricted to Global Administrators.
@@ -12,6 +12,11 @@ export class UsersController {
   @Get()
   list() {
     return this.users.listAll();
+  }
+
+  @Post()
+  create(@Body() dto: CreateUserDto) {
+    return this.users.create(dto);
   }
 
   @Get('roles')

@@ -8,3 +8,5 @@ drizzle/
 .DS_Store
 playwright-report/
 test-results/
+apps/creditguard-service/src/documents/*
+!apps/creditguard-service/src/documents/document-storage.ts

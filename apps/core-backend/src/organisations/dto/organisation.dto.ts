@@ -1,4 +1,4 @@
-import { ArrayUnique, IsArray, IsEmail, IsIn, IsInt, IsOptional, IsString, IsUUID, Matches, MaxLength, Min, MinLength } from 'class-validator';
+import { ArrayUnique, IsArray, IsBoolean, IsEmail, IsIn, IsInt, IsOptional, IsString, IsUrl, IsUUID, Matches, MaxLength, Min, MinLength } from 'class-validator';
 
 export class CreateOrganisationDto {
   @IsString()
@@ -108,4 +108,27 @@ export class AssignModuleTeamDto {
   @IsOptional()
   @IsUUID()
   teamId?: string | null;
+}
+
+export class UpdateModuleUserDesignationDto {
+  @IsString()
+  @IsIn(['', 'Requestor', 'Reviewer'])
+  @MaxLength(150)
+  designation!: string;
+}
+
+export class UpdateProductIntegrationDto {
+  @IsOptional()
+  @IsUrl({ protocols: ['http', 'https'], require_protocol: true, require_tld: false })
+  @MaxLength(2048)
+  baseUrl?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(10000)
+  authorizationKey?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  clearAuthorizationKey?: boolean;
 }

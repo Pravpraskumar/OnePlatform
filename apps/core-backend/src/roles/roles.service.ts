@@ -8,6 +8,8 @@ const SYSTEM_ROLE_NAMES = [
   'Global Administrator',
   'Organisation Administrator',
   'General User',
+  'CreditGuard Requestor',
+  'CreditGuard Reviewer',
 ] as const;
 
 @Injectable()

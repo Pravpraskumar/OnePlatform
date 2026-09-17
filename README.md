@@ -2,7 +2,7 @@
 
 Designer Platform is an enterprise, multi-tenant SaaS monorepo. It provides a shared administration plane, organisation and user management, concurrent-seat licensing, and independently deployable product services. CreditGuard is the first implemented product; PRIME currently exposes a placeholder service.
 
-For a model-oriented description of routes, state, APIs, data ownership, and business rules, see [Application Logic](docs/APPLICATION_LOGIC.md).
+For a visual overview of the technology stack, service boundaries, data ownership, security, deployment, and key workflows, see [Architecture Guide](docs/ARCHITECTURE.md). For a model-oriented description of routes, state, APIs, data ownership, and business rules, see [Application Logic](docs/APPLICATION_LOGIC.md).
 
 ## Repository layout
 
@@ -138,4 +138,14 @@ Vite proxies `/api` to port 4000 and rewrites `/creditguard-api` to the CreditGu
 - Product database passwords are encrypted by the core service before storage.
 - Product services currently do not independently validate bearer tokens; they trust the calling tier and supplied organisation identifier. Treat this as a deployment boundary and harden it before exposing product services directly.
 - Menu access mode is used by the UI but is not a substitute for server-side authorization.
+
+## CreditGuard document storage
+
+CreditGuard request attachments support PDF and DOCX files. Development defaults to local storage under `apps/creditguard-service/src/documents`; generated content in that directory is ignored by Git. Set `DOCUMENT_STORAGE_PROVIDER=azure` in production to use a private Azure Blob container. Azure authentication prefers the hosting identity through `DefaultAzureCredential`; grant that identity Blob Data Contributor access to the configured container. `AZURE_STORAGE_CONNECTION_STRING` is available for controlled environments but must be supplied through an approved secret store and never committed.
+
+Applying the attachment migration creates `request_attachments`. Do not enable attachment uploads until the migration has been reviewed and applied in the target environment. Product-service authentication must also be hardened before the CreditGuard API is directly exposed.
+
+CreditGuard review submission uses the enabled global SMTP configuration maintained under Global Administration settings. Core owns outbound delivery and `email_delivery_logs`; CreditGuard owns the reviewer snapshot and request status transition. Apply both core and CreditGuard migrations before enabling review submission. SMTP delivery failures leave the request Under Review and are visible to Global Administrators under Email Delivery Logs.
+
+The Edit Request Attachments block provides **Attach Request** while attachments remain editable. It saves current Draft values, creates a new McDermott-branded Parent Company Guarantee PDF from persisted request details, and stores it through the configured private document provider as `<request number> latest.pdf`. Repeating the action replaces the previous latest PDF. The document excludes approver and approval details, and generation is independent of **Review done**.
 

@@ -62,7 +62,7 @@ export const users = pgTable(
   }),
 );
 
-// ---- Roles (Global Administrator, Organisation Administrator, General User) ----
+// ---- Platform and product roles ----
 export const roles = pgTable('roles', {
   id: uuid('id').primaryKey().defaultRandom(),
   name: varchar('name', { length: 100 }).notNull().unique(),
@@ -240,6 +240,31 @@ export const productDbConnections = pgTable('product_db_connections', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
+export const organisationProductIntegrations = pgTable(
+  'organisation_product_integrations',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => organisations.id, { onDelete: 'cascade' }),
+    productId: uuid('product_id')
+      .notNull()
+      .references(() => products.id, { onDelete: 'cascade' }),
+    provider: varchar('provider', { length: 50 }).notNull(),
+    baseUrl: varchar('base_url', { length: 2048 }),
+    authorizationSecret: text('authorization_secret'),
+    webhookTokenHash: varchar('webhook_token_hash', { length: 64 }),
+    webhookTokenPrefix: varchar('webhook_token_prefix', { length: 16 }),
+    webhookTokenCreatedAt: timestamp('webhook_token_created_at', { withTimezone: true }),
+    updatedBy: uuid('updated_by').references(() => users.id, { onDelete: 'set null' }),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    orgProductProviderIdx: uniqueIndex('org_product_integrations_key_idx').on(table.orgId, table.productId, table.provider),
+    orgIdx: index('org_product_integrations_org_idx').on(table.orgId),
+  }),
+);
+
 // ---- Organisation <-> Module licensing (concurrent seat count) ----
 export const organisationModules = pgTable(
   'organisation_modules',
@@ -259,6 +284,27 @@ export const organisationModules = pgTable(
   },
   (t) => ({
     orgProductIdx: uniqueIndex('org_modules_org_product_idx').on(t.orgId, t.productId),
+  }),
+);
+
+export const moduleUserDesignations = pgTable(
+  'module_user_designations',
+  {
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => organisations.id, { onDelete: 'cascade' }),
+    productId: uuid('product_id')
+      .notNull()
+      .references(() => products.id, { onDelete: 'cascade' }),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    designation: varchar('designation', { length: 150 }).notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.orgId, table.productId, table.userId] }),
+    userIdx: index('module_user_designations_user_idx').on(table.userId),
   }),
 );
 
@@ -374,10 +420,11 @@ export const smtpConfigurations = pgTable(
     host: varchar('host', { length: 255 }).notNull(),
     port: integer('port').notNull().default(587),
     username: varchar('username', { length: 200 }),
-    passwordSecret: text('password_secret').notNull(),
+    passwordSecret: text('password_secret'),
     fromName: varchar('from_name', { length: 150 }).notNull(),
     fromEmail: varchar('from_email', { length: 254 }).notNull(),
     secure: boolean('secure').notNull().default(true),
+    ignoreTlsCertificateErrors: boolean('ignore_tls_certificate_errors').notNull().default(false),
     enabled: boolean('enabled').notNull().default(true),
     isDefault: boolean('is_default').notNull().default(false),
     priority: integer('priority').notNull(),
@@ -387,6 +434,33 @@ export const smtpConfigurations = pgTable(
   },
   (t) => ({
     settingsPriorityIdx: uniqueIndex('smtp_configurations_settings_priority_idx').on(t.appSettingsId, t.priority),
+  }),
+);
+
+export const emailDeliveryLogs = pgTable(
+  'email_delivery_logs',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id').references(() => organisations.id, { onDelete: 'set null' }),
+    module: varchar('module', { length: 80 }).notNull(),
+    eventType: varchar('event_type', { length: 80 }).notNull(),
+    referenceId: varchar('reference_id', { length: 100 }).notNull(),
+    recipientName: varchar('recipient_name', { length: 200 }).notNull(),
+    recipientEmail: varchar('recipient_email', { length: 320 }).notNull(),
+    subject: varchar('subject', { length: 300 }).notNull(),
+    status: varchar('status', { length: 20 }).notNull(),
+    smtpConfigurationId: uuid('smtp_configuration_id').references(() => smtpConfigurations.id, { onDelete: 'set null' }),
+    smtpConfigurationName: varchar('smtp_configuration_name', { length: 100 }),
+    providerMessageId: varchar('provider_message_id', { length: 300 }),
+    errorMessage: text('error_message'),
+    initiatedBy: uuid('initiated_by').references(() => users.id, { onDelete: 'set null' }),
+    sentAt: timestamp('sent_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    createdAtIdx: index('email_delivery_logs_created_at_idx').on(table.createdAt),
+    moduleStatusIdx: index('email_delivery_logs_module_status_idx').on(table.module, table.status),
+    orgIdx: index('email_delivery_logs_org_idx').on(table.orgId),
   }),
 );
 
@@ -423,3 +497,4 @@ export type Project = typeof projects.$inferSelect;
 export type OrganisationTeam = typeof organisationTeams.$inferSelect;
 export type ProjectModule = typeof projectModules.$inferSelect;
 export type SmtpConfiguration = typeof smtpConfigurations.$inferSelect;
+export type EmailDeliveryLog = typeof emailDeliveryLogs.$inferSelect;

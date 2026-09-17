@@ -26,6 +26,7 @@ interface SmtpConfigurationInput {
   fromName: string;
   fromEmail: string;
   secure: boolean;
+  ignoreTlsCertificateErrors: boolean;
   enabled: boolean;
   isDefault: boolean;
   priority: number;
@@ -116,7 +117,7 @@ export class SettingsService {
 
     return rows.map(({ passwordSecret, ...configuration }) => ({
       ...configuration,
-      passwordConfigured: passwordSecret.length > 0,
+      passwordConfigured: !!passwordSecret,
     }));
   }
 
@@ -133,23 +134,34 @@ export class SettingsService {
     const existingById = new Map(existing.map((configuration) => [configuration.id, configuration]));
 
     const values = configurations.map((configuration) => {
-      const passwordSecret = configuration.password
-        ? encryptSecret(configuration.password)
-        : configuration.id
-          ? existingById.get(configuration.id)?.passwordSecret
-          : undefined;
-      if (!passwordSecret) throw new BadRequestException(`A password is required for ${configuration.name}`);
+      const username = configuration.username?.trim() || null;
+      const suppliedPassword = configuration.password || undefined;
+      const existingPasswordSecret = configuration.id
+        ? existingById.get(configuration.id)?.passwordSecret
+        : null;
+      if (!username && suppliedPassword) {
+        throw new BadRequestException(`A username is required when a password is provided for ${configuration.name}`);
+      }
+      const passwordSecret = username
+        ? suppliedPassword
+          ? encryptSecret(suppliedPassword)
+          : existingPasswordSecret
+        : null;
+      if (username && !passwordSecret) {
+        throw new BadRequestException(`A password is required when a username is provided for ${configuration.name}`);
+      }
 
       return {
         appSettingsId: settings.id,
         name: configuration.name,
         host: configuration.host,
         port: configuration.port,
-        username: configuration.username ?? null,
+        username,
         passwordSecret,
         fromName: configuration.fromName,
         fromEmail: configuration.fromEmail,
         secure: configuration.secure,
+        ignoreTlsCertificateErrors: configuration.ignoreTlsCertificateErrors,
         enabled: configuration.enabled,
         isDefault: configuration.isDefault,
         priority: configuration.priority,

@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useRef, useState } from 'react';
-import { Check, ChevronRight, ChevronsUpDown, FilePlus2, Save, Search, X } from 'lucide-react';
+import { Check, ChevronRight, ChevronsUpDown, ExternalLink, FilePlus2, MailCheck, Paperclip, Save, Search, Trash2, Upload, X } from 'lucide-react';
 import type { Product } from '@platform/shared';
 import { Link, useNavigate, useOutletContext, useParams, useSearchParams } from 'react-router-dom';
 import { useMsal } from '@azure/msal-react';
@@ -15,6 +15,7 @@ interface RequestDetailsForm {
   emailRequestToCorporateTreasury: boolean;
   enableMultiEntity: boolean;
   parentCompanyOfferingGuarantee: string[];
+  parentEntityType: 'localEntity' | 'mil';
   dateSubmitted: string;
   requestingEntity: string[];
   contractingEntity: string[];
@@ -62,10 +63,32 @@ interface CreditGuardRequestRecord {
   amount: number;
   currency: string;
   status: string;
+  requestedByUserId: string | null;
+  assignedReviewerUserId: string | null;
+  assignedReviewerName: string | null;
+  assignedReviewerEmail: string | null;
+  submittedForReviewAt: string | null;
   dueDate: string | null;
   nextReviewDate: string | null;
   notes: string | null;
   details: Partial<RequestDetailsForm> | null;
+  previousReviewerUserId?: string | null;
+}
+
+interface RequestAttachment {
+  id: string;
+  originalFileName: string;
+  mimeType: string;
+  fileSizeBytes: number;
+  uploadedBy: string;
+  createdAt: string;
+  isLegacyMarker?: boolean;
+}
+
+interface ReviewerOption {
+  id: string;
+  displayName: string;
+  email: string;
 }
 
 interface RequestFormProps {
@@ -78,11 +101,18 @@ const labelClass = 'text-sm font-medium text-slate-700';
 const sectionTitleClass = 'text-base font-semibold text-slate-900';
 const instrumentTypes = ['Letter of Comfort', 'Parent Company Guarantee', 'Standby Letter of Credit', 'Bank Guarantee', 'Documentary Letter of Credit'];
 
+function formatFileSize(bytes: number) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${Math.ceil(bytes / 1024)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
 function createInitialDetails(requesterName: string): RequestDetailsForm {
   return {
     emailRequestToCorporateTreasury: false,
     enableMultiEntity: false,
     parentCompanyOfferingGuarantee: [],
+    parentEntityType: 'localEntity',
     dateSubmitted: today,
     requestingEntity: [],
     contractingEntity: [],
@@ -121,6 +151,7 @@ function normaliseDetails(input: Partial<RequestDetailsForm> | null, requesterNa
     ...defaults,
     ...input,
     parentCompanyOfferingGuarantee: Array.isArray(input.parentCompanyOfferingGuarantee) ? input.parentCompanyOfferingGuarantee : [],
+    parentEntityType: (input.parentEntityType === 'mil' || input.parentEntityType === 'localEntity') ? input.parentEntityType : 'localEntity',
     requestingEntity: Array.isArray(input.requestingEntity) ? input.requestingEntity : [],
     contractingEntity: Array.isArray(input.contractingEntity) ? input.contractingEntity : [],
     beneficiaryAddress: input.beneficiaryAddress ?? '',
@@ -144,9 +175,11 @@ function normaliseDetails(input: Partial<RequestDetailsForm> | null, requesterNa
 }
 
 async function creditGuardRequest<T>(path: string, init?: RequestInit): Promise<T> {
+  const headers = new Headers(init?.headers);
+  if (!(init?.body instanceof FormData)) headers.set('Content-Type', 'application/json');
   const response = await fetch(`/creditguard-api${path}`, {
     ...init,
-    headers: { 'Content-Type': 'application/json', ...init?.headers },
+    headers,
   });
   if (!response.ok) throw new Error(`CreditGuard API ${response.status}: ${await response.text()}`);
   return response.json() as Promise<T>;
@@ -212,6 +245,7 @@ function EntityLovField({ label, values, options, multiple, onChange }: { label:
 
 export function CreditGuardRequestFormPage({ mode }: RequestFormProps) {
   const isEdit = mode === 'edit';
+  const formRef = useRef<HTMLFormElement>(null);
   const api = useApi();
   const { instance } = useMsal();
   const navigate = useNavigate();
@@ -232,6 +266,16 @@ export function CreditGuardRequestFormPage({ mode }: RequestFormProps) {
   const [loadingRequest, setLoadingRequest] = useState(isEdit);
   const [requestLoadError, setRequestLoadError] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
+  const [attachments, setAttachments] = useState<RequestAttachment[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [attachingRequest, setAttachingRequest] = useState(false);
+  const [reviewers, setReviewers] = useState<ReviewerOption[]>([]);
+  const [selectedReviewerId, setSelectedReviewerId] = useState('');
+  const [assignedReviewer, setAssignedReviewer] = useState<ReviewerOption | null>(null);
+  const [requestedByUserId, setRequestedByUserId] = useState<string | null>(null);
+  const [submittedForReviewAt, setSubmittedForReviewAt] = useState<string | null>(null);
+  const [submittingForReview, setSubmittingForReview] = useState(false);
+  const [completingReview, setCompletingReview] = useState(false);
   const [summary, setSummary] = useState({
     requestNumber: `CG-${new Date().getFullYear()}-${Date.now().toString().slice(-6)}`,
     instrumentType: 'Letter of Comfort',
@@ -299,15 +343,140 @@ export function CreditGuardRequestFormPage({ mode }: RequestFormProps) {
           nextReviewDate: request.nextReviewDate ?? '',
           notes: request.notes ?? '',
         });
+        setSelectedReviewerId(request.assignedReviewerUserId ?? '');
+        setRequestedByUserId(request.requestedByUserId);
+        setAssignedReviewer(request.assignedReviewerUserId && request.assignedReviewerName && request.assignedReviewerEmail ? {
+          id: request.assignedReviewerUserId,
+          displayName: request.assignedReviewerName,
+          email: request.assignedReviewerEmail,
+        } : null);
+        setSubmittedForReviewAt(request.submittedForReviewAt);
         setDetails(normaliseDetails(request.details, requesterName));
       })
       .catch((error) => setRequestLoadError((error as Error).message))
       .finally(() => setLoadingRequest(false));
   }, [isEdit, requestId, requesterName, selectedOrg]);
 
+  useEffect(() => {
+    if (!isEdit || !requestId || !selectedOrg) return;
+    creditGuardRequest<RequestAttachment[]>(`/requests/${requestId}/attachments?orgId=${encodeURIComponent(selectedOrg.id)}`)
+      .then(setAttachments)
+      .catch((error) => setErrorMessage((error as Error).message));
+  }, [isEdit, requestId, selectedOrg]);
+
+  useEffect(() => {
+    if (!isEdit || !selectedOrg || !product) return;
+    api.get<ReviewerOption[]>(`/notifications/reviewers?orgId=${encodeURIComponent(selectedOrg.id)}&productId=${encodeURIComponent(product.id)}`)
+      .then(setReviewers)
+      .catch((error) => setErrorMessage((error as Error).message));
+  }, [api, isEdit, product, selectedOrg]);
+
   const { session, loading: sessionLoading, error: sessionError } = useProductSession(api, selectedOrg?.id, product?.id, product?.name, projectId || undefined, projectRequired, allocationChecked);
   const updateDetail = <K extends keyof RequestDetailsForm>(key: K, value: RequestDetailsForm[K]) => setDetails((current) => ({ ...current, [key]: value }));
+  
+  useEffect(() => {
+    if (summary.instrumentType !== 'Parent Company Guarantee' && details.parentEntityType !== 'localEntity') {
+      setDetails((current) => ({ ...current, parentEntityType: 'localEntity' }));
+    }
+  }, [summary.instrumentType, details.parentEntityType]);
+  
   const requestsUrl = `/app/product/CreditGuard/requests${projectId ? `?projectId=${encodeURIComponent(projectId)}` : ''}`;
+  const isWorkflowReadOnly = isEdit && ['Under Review', 'Reviewed', 'Sent for Approval'].includes(summary.status);
+  const canCompleteReview = summary.status === 'Under Review' && !!user && user.id === assignedReviewer?.id;
+  const canAssignReviewer = summary.status === 'Draft' || (summary.status === 'Under Review' && !!user && (
+    user.id === requestedByUserId
+    || ['Owner', 'Admin'].includes(selectedOrg?.membership ?? '')
+    || user.globalRoles.includes('Global Administrator')
+  ));
+  const requestPdfFileName = `${summary.requestNumber.replace(/[<>:"/\\|?*\u0000-\u001f]/g, '_')} latest.pdf`;
+  const hasRequestPdf = attachments.some((attachment) => attachment.originalFileName === requestPdfFileName);
+  const requestPayload = (status: string) => ({
+    orgId: selectedOrg!.id,
+    projectId: projectId || null,
+    requestNumber: summary.requestNumber,
+    instrumentType: summary.instrumentType,
+    applicant: businessEntities.find((entity) => entity.id === details.requestingEntity[0])?.legalEntityName ?? details.requestingEntity[0],
+    beneficiary: summary.beneficiary,
+    amount: Number(summary.amount),
+    currency: summary.currency,
+    status,
+    requestedBy: requesterName || details.requesterName,
+    dueDate: summary.dueDate || null,
+    nextReviewDate: summary.nextReviewDate || null,
+    notes: summary.notes || null,
+    details,
+  });
+
+  const uploadFiles = async (savedRequestId: string, files: File[]) => {
+    if (!selectedOrg) return;
+    setUploading(true);
+    try {
+      const uploaded: RequestAttachment[] = [];
+      for (const file of files) {
+        const body = new FormData();
+        body.append('file', file);
+        body.append('orgId', selectedOrg.id);
+        body.append('uploadedBy', requesterName || details.requesterName);
+        uploaded.push(await creditGuardRequest<RequestAttachment>(`/requests/${savedRequestId}/attachments`, {
+          method: 'POST',
+          body,
+        }));
+      }
+      setAttachments((current) => [...uploaded, ...current]);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const chooseFiles = async (files: FileList | null) => {
+    if (!files || !requestId) return;
+    const selected = Array.from(files);
+    try {
+      await uploadFiles(requestId, selected);
+      notify('Attachment uploaded successfully.', 'success');
+    } catch (error) {
+      notify((error as Error).message, 'error');
+    }
+  };
+
+  const attachRequest = async () => {
+    if (!requestId || !selectedOrg || !['Draft', 'Under Review'].includes(summary.status)) return;
+    setAttachingRequest(true);
+    try {
+      if (summary.status === 'Draft') {
+        await creditGuardRequest(`/requests/${requestId}`, {
+          method: 'PATCH',
+          body: JSON.stringify(requestPayload('Draft')),
+        });
+      }
+      const attachment = await api.creditGuard<RequestAttachment>(`/requests/${requestId}/attach-request`, {
+        method: 'POST',
+        body: JSON.stringify({ orgId: selectedOrg.id }),
+      });
+      setAttachments((current) => [attachment, ...current.filter((candidate) => !candidate.isLegacyMarker && candidate.originalFileName !== attachment.originalFileName)]);
+      notify('Request PDF attached successfully.', 'success');
+    } catch (error) {
+      notify((error as Error).message, 'error');
+    } finally {
+      setAttachingRequest(false);
+    }
+  };
+
+  const removeAttachment = async (attachment: RequestAttachment) => {
+    if (!requestId || !selectedOrg || !window.confirm(`Delete ${attachment.originalFileName}?`)) return;
+    try {
+      await creditGuardRequest(`/requests/${requestId}/attachments/${attachment.id}?orgId=${encodeURIComponent(selectedOrg.id)}`, { method: 'DELETE' });
+      setAttachments((current) => current.filter((candidate) => candidate.id !== attachment.id));
+      notify('Attachment deleted.', 'success');
+    } catch (error) {
+      notify((error as Error).message, 'error');
+    }
+  };
+
+  const openAttachment = (attachment: RequestAttachment) => {
+    if (!requestId || !selectedOrg) return;
+    window.open(`/creditguard-api/requests/${requestId}/attachments/${attachment.id}/content?orgId=${encodeURIComponent(selectedOrg.id)}`, '_blank', 'noopener,noreferrer');
+  };
 
   const changeMultiEntity = (enabled: boolean) => {
     if (enabled) {
@@ -336,41 +505,137 @@ export function CreditGuardRequestFormPage({ mode }: RequestFormProps) {
       notify('Select a business entity in each required entity field.', 'warning');
       return;
     }
-    if (isEdit && !details.legalLanguageConfirmed) {
+    if (isEdit && summary.status === 'Under Review' && !details.legalLanguageConfirmed) {
       notify('Confirm that the guarantee language has been reviewed by the local legal team.', 'warning');
+      return;
+    }
+    if (isEdit && summary.status === 'Under Review' && attachments.length === 0) {
+      notify('Attach at least one PDF or DOCX document before sending for approval.', 'warning');
       return;
     }
     setSaving(true);
     setErrorMessage('');
     try {
-      const saved = await creditGuardRequest<{ id: string }>(isEdit ? `/requests/${requestId}` : '/requests', {
+      const saved = await (isEdit ? creditGuardRequest<{ id: string }>(`/requests/${requestId}`, {
         method: isEdit ? 'PATCH' : 'POST',
-        body: JSON.stringify({
-          orgId: selectedOrg.id,
-          projectId: projectId || null,
-          requestNumber: summary.requestNumber,
-          instrumentType: summary.instrumentType,
-          applicant: businessEntities.find((entity) => entity.id === details.requestingEntity[0])?.legalEntityName ?? details.requestingEntity[0],
-          beneficiary: summary.beneficiary,
-          amount: Number(summary.amount),
-          currency: summary.currency,
-          status: isEdit ? summary.status : 'Draft',
-          requestedBy: requesterName || details.requesterName,
-          dueDate: summary.dueDate || null,
-          nextReviewDate: summary.nextReviewDate || null,
-          notes: summary.notes || null,
-          details,
-        }),
-      });
-      notify(isEdit ? 'Request updated successfully.' : 'Draft request saved successfully.', 'success');
+        body: JSON.stringify(requestPayload(isEdit ? summary.status : 'Draft')),
+      }) : api.creditGuard<{ id: string }>('/requests', { method: 'POST', body: JSON.stringify(requestPayload('Draft')) }));
       if (!isEdit) {
+        notify('Draft request saved successfully.', 'success');
         const query = projectId ? `?projectId=${encodeURIComponent(projectId)}` : '';
         navigate(`/app/product/CreditGuard/requests/${saved.id}/edit${query}`, { replace: true });
+      } else {
+        notify('Request updated successfully.', 'success');
       }
     } catch (error) {
       notify((error as Error).message, 'error');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const submitForReview = async () => {
+    if (!selectedOrg || !product || !requestId || !['Draft', 'Under Review'].includes(summary.status)) return;
+    const isReassignment = summary.status === 'Under Review';
+    const reviewer = reviewers.find((candidate) => candidate.id === selectedReviewerId);
+    if (!reviewer) {
+      notify('Select a reviewer before submitting the request.', 'warning');
+      return;
+    }
+    if (isReassignment && reviewer.id === assignedReviewer?.id) {
+      notify('Select a different reviewer before reassigning the request.', 'warning');
+      return;
+    }
+    if (!isReassignment && !hasRequestPdf) {
+      notify('Use Attach Request before submitting for review.', 'warning');
+      return;
+    }
+    if (!isReassignment && !formRef.current?.reportValidity()) return;
+    if (!isReassignment && [details.parentCompanyOfferingGuarantee, details.requestingEntity, details.contractingEntity].some((values) => values.length === 0)) {
+      notify('Select a business entity in each required entity field.', 'warning');
+      return;
+    }
+
+    setSubmittingForReview(true);
+    try {
+      const draftPayload = requestPayload('Draft');
+      if (!isReassignment) {
+        await creditGuardRequest(`/requests/${requestId}`, { method: 'PATCH', body: JSON.stringify(draftPayload) });
+      }
+      const submitted = await creditGuardRequest<CreditGuardRequestRecord>(`/requests/${requestId}/submit-for-review`, {
+        method: 'POST',
+        body: JSON.stringify({
+          orgId: selectedOrg.id,
+          reviewerUserId: reviewer.id,
+          reviewerName: reviewer.displayName,
+          reviewerEmail: reviewer.email,
+        }),
+      });
+      setSummary((current) => ({ ...current, status: submitted.status }));
+      setAssignedReviewer(reviewer);
+      setSubmittedForReviewAt(submitted.submittedForReviewAt);
+
+      const notificationFailures: string[] = [];
+      if (isReassignment && submitted.previousReviewerUserId) {
+        try {
+          const pullback = await api.post<{ status: 'sent' | 'failed'; message?: string }>('/notifications/reviewer-reassignment', {
+            orgId: selectedOrg.id,
+            productId: product.id,
+            previousReviewerUserId: submitted.previousReviewerUserId,
+            newReviewerUserId: reviewer.id,
+            requestId,
+            requestNumber: summary.requestNumber,
+          });
+          if (pullback.status === 'failed') notificationFailures.push(`previous reviewer: ${pullback.message ?? 'See Email Delivery Logs.'}`);
+        } catch (error) {
+          notificationFailures.push(`previous reviewer: ${(error as Error).message}`);
+        }
+      }
+
+      try {
+        const delivery = await api.post<{ status: 'sent' | 'failed'; message?: string }>('/notifications/request-review', {
+          orgId: selectedOrg.id,
+          productId: product.id,
+          reviewerUserId: reviewer.id,
+          requestId,
+          requestNumber: summary.requestNumber,
+          instrumentType: summary.instrumentType,
+          applicant: draftPayload.applicant,
+          beneficiary: summary.beneficiary,
+          amount: Number(summary.amount),
+          currency: summary.currency,
+          requestedBy: requesterName || details.requesterName,
+        });
+        if (delivery.status === 'failed') notificationFailures.push(`new reviewer: ${delivery.message ?? 'See Email Delivery Logs.'}`);
+      } catch (error) {
+        notificationFailures.push(`new reviewer: ${(error as Error).message}`);
+      }
+      if (notificationFailures.length > 0) {
+        notify(`Reviewer ${isReassignment ? 'reassigned' : 'assigned'}, but email delivery failed for ${notificationFailures.join('; ')}`, 'warning');
+      } else {
+        notify(isReassignment ? 'Reviewer reassigned and both reviewers notified.' : 'Request submitted for review and reviewer notified.', 'success');
+      }
+    } catch (error) {
+      notify((error as Error).message, 'error');
+    } finally {
+      setSubmittingForReview(false);
+    }
+  };
+
+  const completeReview = async () => {
+    if (!requestId || !selectedOrg || !canCompleteReview) return;
+    setCompletingReview(true);
+    try {
+      const reviewed = await api.creditGuard<CreditGuardRequestRecord>(`/requests/${requestId}/review-done`, {
+        method: 'POST',
+        body: JSON.stringify({ orgId: selectedOrg.id }),
+      });
+      setSummary((current) => ({ ...current, status: reviewed.status }));
+      notify('Review completed.', 'success');
+    } catch (error) {
+      notify((error as Error).message, 'error');
+    } finally {
+      setCompletingReview(false);
     }
   };
 
@@ -380,17 +645,19 @@ export function CreditGuardRequestFormPage({ mode }: RequestFormProps) {
   if (!product || !allocationChecked || sessionLoading || !session || loadingRequest) return <p className="text-sm text-slate-500">{loadingRequest ? 'Loading request...' : 'Checking CreditGuard access...'}</p>;
 
   return (
-    <form onSubmit={submit} className="mx-auto max-w-6xl space-y-5">
+    <form ref={formRef} onSubmit={submit} className="mx-auto max-w-6xl space-y-6">
       <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-sm text-slate-500">
         <Link to={requestsUrl} className="hover:text-brand">Requests</Link><ChevronRight size={14} /><span className="font-medium text-slate-900">{isEdit ? 'Edit Request' : 'New Request'}</span>
       </nav>
-      <header className={`sticky top-0 z-20 flex flex-wrap items-center justify-between gap-4 rounded-md border px-4 py-3 backdrop-blur ${isEdit ? 'border-slate-200 bg-white/95 shadow-sm' : 'border-blue-500 bg-gradient-to-r from-sky-600 via-blue-500 to-indigo-500 text-white shadow-lg ring-1 ring-blue-300/50'}`}>
-        <div><div className="flex items-center gap-2"><FilePlus2 size={22} className={isEdit ? 'text-brand' : 'text-white'} /><h1 className={`text-2xl font-semibold ${isEdit ? 'text-slate-900' : 'text-white'}`}>{isEdit ? 'Edit Company Guarantee Request' : 'New Company Guarantee Request'}</h1></div><p className={`mt-1 text-sm ${isEdit ? 'text-slate-500' : 'text-blue-50'}`}>{isEdit ? 'Update the saved request and complete approval information.' : 'Enter the initial request information and save it as a Draft.'}</p></div>
-        <div className={`flex shrink-0 gap-2 ${isEdit ? '' : 'rounded-lg border border-white/80 bg-white/95 p-2 shadow-md'}`}><Button type="button" variant="secondary" className={isEdit ? undefined : '!border !border-slate-300 !bg-white !text-slate-800 shadow-sm hover:!bg-slate-100'} onClick={() => navigate(requestsUrl)}>Cancel</Button><Button type="submit" disabled={saving} className={isEdit ? undefined : '!bg-blue-700 !text-white shadow-sm hover:!bg-blue-800'}><Save size={16} />{saving ? 'Saving...' : isEdit ? 'Save changes' : 'Save Draft'}</Button></div>
+      <header className="sticky top-0 z-20 mb-2 flex flex-wrap items-center justify-between gap-4 rounded-md border border-blue-500 bg-gradient-to-r from-sky-600 via-blue-500 to-indigo-500 px-4 py-3 text-white shadow-lg ring-1 ring-blue-300/50 backdrop-blur">
+        <div><div className="flex items-center gap-2"><FilePlus2 size={22} className="text-white" /><h1 className="text-2xl font-semibold text-white">{isEdit ? 'Edit Company Guarantee Request' : 'New Company Guarantee Request'}</h1></div><p className="mt-1 text-sm text-blue-50">{isEdit ? 'Update the saved request and complete approval information.' : 'Enter the initial request information and save it as a Draft.'}</p></div>
+        <div className="flex shrink-0 gap-2 rounded-lg border border-white/80 bg-white/95 p-2 shadow-md"><Button type="button" variant="secondary" className="!border !border-slate-300 !bg-white !text-slate-800 shadow-sm hover:!bg-slate-100" onClick={() => navigate(requestsUrl)}>Cancel</Button>{!isWorkflowReadOnly && <Button type="submit" disabled={saving} className="!bg-blue-700 !text-white shadow-sm hover:!bg-blue-800"><Save size={16} />{saving ? 'Saving...' : isEdit ? 'Save changes' : 'Save Draft'}</Button>}{canCompleteReview && <Button type="button" onClick={() => void completeReview()} disabled={completingReview} className="!bg-emerald-700 !text-white hover:!bg-emerald-800">{completingReview ? 'Completing...' : 'Review done'}</Button>}</div>
       </header>
 
       {errorMessage && <div role="alert" className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{errorMessage}</div>}
 
+      {isWorkflowReadOnly && <div className="rounded-md border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">Request details are read-only while review and approvals are in progress.</div>}
+      <fieldset disabled={isWorkflowReadOnly} className="min-w-0 space-y-6 border-0 p-0">
       {projectRequired && <Card><h2 className={sectionTitleClass}>Project</h2><label className={`${labelClass} mt-4 block`}>Assigned project<span className="ml-1 text-red-600">*</span><select className={inputClass} value={projectId} onChange={(event) => setProjectId(event.target.value)} required><option value="">Select a project</option>{projects.map((project) => <option key={project.id} value={project.id}>{project.name} ({project.code})</option>)}</select></label></Card>}
 
       <Card>
@@ -398,7 +665,7 @@ export function CreditGuardRequestFormPage({ mode }: RequestFormProps) {
         <div className="mt-4 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           <TextField label="Request number" value={summary.requestNumber} onChange={(value) => setSummary({ ...summary, requestNumber: value })} required />
           <label className={labelClass}>Instrument type<span className="ml-1 text-red-600">*</span><select className={inputClass} value={summary.instrumentType} onChange={(event) => setSummary({ ...summary, instrumentType: event.target.value })} required>{instrumentTypes.map((type) => <option key={type} value={type}>{type}</option>)}</select></label>
-          {isEdit ? <label className={labelClass}>Workflow status<select className={inputClass} value={summary.status} onChange={(event) => setSummary({ ...summary, status: event.target.value })}><option>Draft</option><option>Under Review</option></select></label> : <div className={labelClass}>Workflow status<div className={`${inputClass} bg-slate-50 text-slate-600`}>Draft</div></div>}
+          <div className={labelClass}>Workflow status<div className={`${inputClass} bg-slate-50 text-slate-600`}>{isEdit ? summary.status : 'Draft'}</div></div>
           <label className={labelClass}>Email request to Corporate Treasury in earlier stages?<span className="ml-1 text-red-600">*</span><select className={inputClass} value={details.emailRequestToCorporateTreasury ? 'yes' : 'no'} onChange={(event) => updateDetail('emailRequestToCorporateTreasury', event.target.value === 'yes')} required><option value="no">No</option><option value="yes">Yes</option></select></label>
           <TextField label="Date submitted" type="date" value={details.dateSubmitted} onChange={(value) => updateDetail('dateSubmitted', value)} required />
           <TextField label="Date required by" type="date" value={summary.dueDate} onChange={(value) => setSummary({ ...summary, dueDate: value })} required />
@@ -406,19 +673,80 @@ export function CreditGuardRequestFormPage({ mode }: RequestFormProps) {
         </div>
       </Card>
 
-      <Card>
+      <Card className="mb-2">
         <h2 className={sectionTitleClass}>Guarantee and contract</h2>
-        <label className="mt-4 flex items-center gap-3 rounded-md border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+        
+        {summary.instrumentType === 'Parent Company Guarantee' && (
+          <div className="mt-4">
+            <label className={`${labelClass} block mb-4`}>Parent Entity Type<span className="ml-1 text-red-600">*</span></label>
+            <div className="grid gap-4 md:grid-cols-2 mb-6">
+              {(['localEntity', 'mil'] as const).map((type) => {
+                const isSelected = details.parentEntityType === type;
+                const typeLabel = type === 'localEntity' ? 'Local Entity' : 'MIL';
+                const typeDescription = type === 'localEntity' 
+                  ? 'Select a business entity from your organisation'
+                  : 'McDermott International Limited - Fixed parent company';
+                
+                return (
+                  <button
+                    key={type}
+                    type="button"
+                    onClick={() => {
+                      updateDetail('parentEntityType', type);
+                      if (type === 'mil') {
+                        updateDetail('parentCompanyOfferingGuarantee', []);
+                        if (details.enableMultiEntity) {
+                          changeMultiEntity(false);
+                        }
+                      }
+                    }}
+                    className={`relative flex flex-col gap-3 rounded-lg border-2 p-4 text-left transition-all ${
+                      isSelected
+                        ? 'border-brand bg-blue-50'
+                        : 'border-slate-200 bg-white hover:border-slate-300'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-slate-900">{typeLabel}</h3>
+                        <p className="mt-1 text-sm text-slate-600">{typeDescription}</p>
+                      </div>
+                      <div className={`ml-3 flex h-5 w-5 items-center justify-center rounded-full border-2 ${
+                        isSelected
+                          ? 'border-brand bg-brand'
+                          : 'border-slate-300 bg-white'
+                      }`}>
+                        {isSelected && <span className="text-white text-xs">✓</span>}
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+        
+        <label className="mt-4 flex items-center gap-3 rounded-md border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700" title={details.parentEntityType === 'mil' ? 'Multiple entities selection is not available when MIL is selected' : ''}>
           <input
             type="checkbox"
             checked={details.enableMultiEntity}
             onChange={(event) => changeMultiEntity(event.target.checked)}
-            className="accent-brand"
+            disabled={details.parentEntityType === 'mil'}
+            className="accent-brand disabled:opacity-50 disabled:cursor-not-allowed"
           />
-          <span><strong>Enable multientity</strong><span className="ml-1 text-slate-500">Allow more than one selection in each entity field.</span></span>
+          <span><strong>Enable Multiple Entities selection</strong><span className="ml-1 text-slate-500">Allow more than one selection in each entity field.</span></span>
         </label>
         <div className="mt-4 grid gap-4 md:grid-cols-2">
-          <EntityLovField label="Parent company offering guarantee" values={details.parentCompanyOfferingGuarantee} options={businessEntities} multiple={details.enableMultiEntity} onChange={(values) => updateDetail('parentCompanyOfferingGuarantee', values)} />
+          {summary.instrumentType === 'Parent Company Guarantee' && details.parentEntityType === 'mil' ? (
+            <div className="md:col-span-2">
+              <label className={labelClass}>Parent company offering guarantee<span className="ml-1 text-red-600">*</span></label>
+              <div className={`${inputClass} bg-slate-50 text-slate-600 cursor-not-allowed`}>
+                McDermott International Limited
+              </div>
+            </div>
+          ) : (
+            <EntityLovField label="Parent company offering guarantee" values={details.parentCompanyOfferingGuarantee} options={businessEntities} multiple={details.enableMultiEntity} onChange={(values) => updateDetail('parentCompanyOfferingGuarantee', values)} />
+          )}
           <EntityLovField label="Name of requesting entity" values={details.requestingEntity} options={businessEntities} multiple={details.enableMultiEntity} onChange={(values) => updateDetail('requestingEntity', values)} />
           <EntityLovField label="Name of contracting entity" values={details.contractingEntity} options={businessEntities} multiple={details.enableMultiEntity} onChange={(values) => updateDetail('contractingEntity', values)} />
           <TextField label="Proposal/contract reference number and name" value={details.proposalContractReference} onChange={(value) => updateDetail('proposalContractReference', value)} required />
@@ -451,7 +779,7 @@ export function CreditGuardRequestFormPage({ mode }: RequestFormProps) {
         </div>
       </Card>
 
-      <Card>
+      <Card className="mb-2">
         <h2 className={sectionTitleClass}>Supporting information</h2>
         <div className="mt-4 grid gap-4 md:grid-cols-2">
           <TextAreaField label="Background on requirement for guarantee" value={details.backgroundRequirement} onChange={(value) => updateDetail('backgroundRequirement', value)} required rows={5} />
@@ -460,34 +788,60 @@ export function CreditGuardRequestFormPage({ mode }: RequestFormProps) {
           <TextAreaField label="Delivery instructions" value={details.deliveryInstructions} onChange={(value) => updateDetail('deliveryInstructions', value)} />
           <label className={labelClass}>PCG Language<select className={inputClass} value={details.pcgLanguage} onChange={(event) => updateDetail('pcgLanguage', event.target.value as RequestDetailsForm['pcgLanguage'])}><option>Standard Description</option><option>Beneficiary / Client Required Format</option></select></label>
           <TextAreaField label="Additional notes" value={summary.notes} onChange={(value) => setSummary({ ...summary, notes: value })} rows={2} />
-          {isEdit && <div className="md:col-span-2"><TextAreaField label="Attachments" value={details.attachments} onChange={(value) => updateDetail('attachments', value)} rows={2} readOnly /></div>}
         </div>
       </Card>
+      </fieldset>
+      {isEdit && <Card>
+          <div>
+            <span className={labelClass}>Attachments<span className="ml-1 text-red-600">*</span></span>
+            <div className="mt-4 rounded-md border border-slate-300 bg-slate-50 p-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <p className="text-sm text-slate-600">PDF or DOCX, up to 10 MB each. At least one is required before approval.</p>
+                {!['Reviewed', 'Sent for Approval'].includes(summary.status) && <div className="flex flex-wrap items-center gap-2">
+                  <Button type="button" variant="secondary" onClick={() => void attachRequest()} disabled={attachingRequest || uploading}>
+                    <FilePlus2 size={16} />{attachingRequest ? 'Attaching...' : 'Attach Request'}
+                  </Button>
+                  <label className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-800 shadow-sm hover:bg-slate-100">
+                    <Upload size={16} />{uploading ? 'Uploading...' : 'Attach documents'}
+                    <input
+                      aria-label="Attach documents"
+                      className="sr-only"
+                      type="file"
+                      accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                      multiple
+                      disabled={uploading || attachingRequest}
+                      onChange={(event) => { void chooseFiles(event.target.files); event.target.value = ''; }}
+                    />
+                  </label>
+                </div>}
+              </div>
+              {attachments.length > 0 && <ul className="mt-3 divide-y divide-slate-200 border-t border-slate-200">
+                {attachments.map((attachment) => <li key={attachment.id} className="flex items-center justify-between gap-3 py-2 text-sm">
+                  <span className="flex min-w-0 items-center gap-2"><Paperclip size={15} className="shrink-0 text-slate-500" /><span className="truncate">{attachment.originalFileName}</span><span className="shrink-0 text-xs text-slate-400">{attachment.isLegacyMarker ? 'Already attached' : formatFileSize(attachment.fileSizeBytes)}</span></span>
+                  <span className="flex shrink-0 items-center gap-1">
+                    {!attachment.isLegacyMarker && <button type="button" title={`Open ${attachment.originalFileName}`} onClick={() => openAttachment(attachment)} className="rounded p-1.5 text-slate-600 hover:bg-white hover:text-brand"><ExternalLink size={16} /></button>}
+                    {!attachment.isLegacyMarker && !['Reviewed', 'Sent for Approval'].includes(summary.status) && <button type="button" title={`Delete ${attachment.originalFileName}`} onClick={() => void removeAttachment(attachment)} className="rounded p-1.5 text-slate-600 hover:bg-white hover:text-red-700"><Trash2 size={16} /></button>}
+                  </span>
+                </li>)}
+              </ul>}
+              {attachments.length === 0 && <p className="mt-3 border-t border-slate-200 pt-3 text-sm text-slate-400">No documents attached.</p>}
+            </div>
+          </div>
+      </Card>}
 
       {isEdit && <Card>
-        <h2 className={sectionTitleClass}>Requesting division and approvals</h2>
-        <p className="mt-1 text-sm text-slate-500">The source form requires two requesting-division signatures. Approval fields may be completed as the request progresses.</p>
-        <div className="mt-4 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          <TextField label="Requester" value={details.requesterName} onChange={(value) => updateDetail('requesterName', value)} required />
-          <TextField label="Requester date" type="date" value={details.requesterApprovalDate} onChange={(value) => updateDetail('requesterApprovalDate', value)} />
-          <div />
-          <TextField label="BL Finance VP - name and title" value={details.blFinanceVpNameTitle} onChange={(value) => updateDetail('blFinanceVpNameTitle', value)} />
-          <TextField label="BL Finance VP date" type="date" value={details.blFinanceVpApprovalDate} onChange={(value) => updateDetail('blFinanceVpApprovalDate', value)} />
-          <div />
-          <TextField label="BL Legal Department" value={details.blLegalDepartment} onChange={(value) => updateDetail('blLegalDepartment', value)} />
-          <TextField label="BL Legal date" type="date" value={details.blLegalApprovalDate} onChange={(value) => updateDetail('blLegalApprovalDate', value)} />
-          <div />
-          <TextField label="Head of Sustainability & Governance" value={details.sustainabilityGovernanceApproval} onChange={(value) => updateDetail('sustainabilityGovernanceApproval', value)} />
-          <TextField label="Sustainability & Governance date" type="date" value={details.sustainabilityGovernanceApprovalDate} onChange={(value) => updateDetail('sustainabilityGovernanceApprovalDate', value)} />
-          <div />
-          <TextField label="CFO approval" value={details.cfoApproval} onChange={(value) => updateDetail('cfoApproval', value)} />
-          <TextField label="CFO approval date" type="date" value={details.cfoApprovalDate} onChange={(value) => updateDetail('cfoApprovalDate', value)} />
-          <div />
-          <TextField label="Corporate Treasury approval" value={details.corporateTreasuryApproval} onChange={(value) => updateDetail('corporateTreasuryApproval', value)} />
-          <TextField label="Corporate Treasury approval date" type="date" value={details.corporateTreasuryApprovalDate} onChange={(value) => updateDetail('corporateTreasuryApprovalDate', value)} />
-        </div>
-        <label className="mt-5 flex items-start gap-3 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-slate-700"><input type="checkbox" checked={details.legalLanguageConfirmed} onChange={(event) => updateDetail('legalLanguageConfirmed', event.target.checked)} className="mt-0.5 accent-brand" /><span><strong>Local legal review confirmed.</strong> All Parent Company Guarantee language has been approved and reviewed by the local legal team.</span></label>
+        <h2 className={`flex items-center gap-2 ${sectionTitleClass}`}><MailCheck size={18} />Assign Reviewer and Submit</h2>
+        {canAssignReviewer ? <>
+          <p className="mt-4 text-sm text-slate-500">{summary.status === 'Draft' ? 'Choose a registered Module User assigned the CreditGuard Reviewer role. Submission changes the status to Under Review and sends an email using Global Administration SMTP settings.' : 'The reviewer can be changed until review is completed. The previous reviewer receives a pullback notice and the new reviewer receives the review request.'}</p>
+          {summary.status === 'Under Review' && <p className="mt-3 text-sm text-slate-700"><span className="font-medium">Current reviewer:</span> {assignedReviewer ? `${assignedReviewer.displayName} (${assignedReviewer.email})` : 'Not available'}</p>}
+          <div className="mt-4 flex flex-col gap-4 md:flex-row md:items-end">
+            <label className={`${labelClass} min-w-0 flex-1`}>Reviewer<span className="ml-1 text-red-600">*</span><select className={inputClass} value={selectedReviewerId} onChange={(event) => setSelectedReviewerId(event.target.value)}><option value="">Select a reviewer</option>{reviewers.map((reviewer) => <option key={reviewer.id} value={reviewer.id}>{reviewer.displayName} ({reviewer.email})</option>)}</select></label>
+            <Button type="button" onClick={() => void submitForReview()} disabled={submittingForReview || !selectedReviewerId || (summary.status === 'Draft' && !hasRequestPdf) || (summary.status === 'Under Review' && selectedReviewerId === assignedReviewer?.id)}><MailCheck size={16} />{submittingForReview ? 'Submitting...' : summary.status === 'Under Review' ? 'Reassign reviewer' : 'Submit for review'}</Button>
+          </div>
+          {reviewers.length === 0 && <p className="mt-3 text-sm text-amber-700">No eligible reviewers are configured for this organisation. Assign the CreditGuard Reviewer role in user administration.</p>}
+        </> : <div className="mt-4 rounded-md border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700"><span className="font-medium">Assigned reviewer:</span> {assignedReviewer ? `${assignedReviewer.displayName} (${assignedReviewer.email})` : 'Not available'}{submittedForReviewAt && <span className="ml-2 text-slate-500">Submitted {new Date(submittedForReviewAt).toLocaleString()}</span>}</div>}
       </Card>}
+
     </form>
   );
 }

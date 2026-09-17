@@ -26,6 +26,7 @@ test('a concurrent-seat rejection blocks product entry with a useful message', a
 
 test('request list links to full editing and supports Notes-only inline editing and deletion', async ({ page }) => {
   let patchBody: unknown;
+  await page.route('**/creditguard-api/requests?*', (route) => route.fulfill({ contentType: 'application/json', body: JSON.stringify([{ ...creditGuardRequest, status: 'Draft' }]) }));
   await page.route('**/creditguard-api/requests/request-1', async (route) => {
     if (route.request().method() === 'PATCH') {
       patchBody = route.request().postDataJSON();
@@ -42,7 +43,7 @@ test('request list links to full editing and supports Notes-only inline editing 
   await page.getByPlaceholder('Filter Request No.').fill('');
 
   await page.getByTitle('Edit notes').click();
-  await expect(page.locator('tbody input')).toHaveCount(1);
+  await expect(page.getByLabel('Notes for CG-1001')).toHaveCount(1);
   await page.getByLabel('Notes for CG-1001').fill('Updated request note');
   await page.getByTitle('Save').click();
   await expect.poll(() => patchBody).toMatchObject({
@@ -53,6 +54,24 @@ test('request list links to full editing and supports Notes-only inline editing 
   page.once('dialog', (dialog) => dialog.accept());
   await page.getByTitle('Delete').click();
   await expect(page.getByText('CG-1001')).toBeHidden();
+});
+
+test('Assign Approvers is enabled only for a selected Reviewed request', async ({ page }) => {
+  await page.route('**/creditguard-api/requests?*', (route) => route.fulfill({ contentType: 'application/json', body: JSON.stringify([{ ...creditGuardRequest, status: 'Reviewed' }]) }));
+  await page.goto('/app/product/CreditGuard/requests');
+
+  await expect(page.getByRole('button', { name: 'Assign Approvers' })).toBeDisabled();
+  const requestRow = page.locator('tbody tr').filter({ hasText: 'CG-1001' });
+  await requestRow.getByRole('cell', { name: creditGuardRequest.beneficiary }).click();
+  await expect(requestRow).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByLabel('Select request CG-1001')).toBeChecked();
+  await expect(page.getByRole('button', { name: 'Assign Approvers' })).toBeEnabled();
+  await requestRow.getByRole('cell', { name: creditGuardRequest.beneficiary }).click();
+  await expect(requestRow).toHaveAttribute('aria-selected', 'false');
+  await expect(page.getByRole('button', { name: 'Assign Approvers' })).toBeDisabled();
+  await requestRow.getByRole('cell', { name: creditGuardRequest.beneficiary }).click();
+  await page.getByRole('button', { name: 'Assign Approvers' }).click();
+  await expect(page).toHaveURL(/\/requests\/request-1\/approvers$/);
 });
 
 test('request reports aggregate the current portfolio', async ({ page }) => {

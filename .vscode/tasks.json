@@ -128,6 +128,164 @@
 				"$tsc"
 			],
 			"group": "build"
+		},
+		{
+			"label": "Test CreditGuard Integration",
+			"type": "shell",
+			"command": "C:\\Program Files\\nodejs\\npx.cmd",
+			"args": [
+				"playwright",
+				"test",
+				"creditguard-integration.spec.ts",
+				"--output=test-results\\creditguard-integration"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "Validate Signit integration backend",
+			"type": "shell",
+			"command": "C:\\Program Files\\nodejs\\npm.cmd",
+			"args": [
+				"exec",
+				"--workspace",
+				"@platform/core-backend",
+				"--",
+				"tsc",
+				"--noEmit"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$tsc"
+			],
+			"group": "build"
+		},
+		{
+			"label": "Validate approval initiation backend",
+			"type": "shell",
+			"command": "C:\\Program Files\\nodejs\\npm.cmd",
+			"args": [
+				"exec",
+				"--workspace",
+				"@platform/creditguard-service",
+				"--",
+				"tsc",
+				"--noEmit"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$tsc"
+			],
+			"group": "build"
+		},
+		{
+			"label": "Generate Signit webhook migration",
+			"type": "shell",
+			"command": "C:\\Program Files\\nodejs\\npm.cmd",
+			"args": [
+				"run",
+				"db:generate",
+				"--workspace",
+				"@platform/core-backend"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Apply Signit webhook migration",
+			"type": "shell",
+			"command": "C:\\Program Files\\nodejs\\npm.cmd",
+			"args": [
+				"run",
+				"db:migrate",
+				"--workspace",
+				"@platform/core-backend"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Test CreditGuard edit form spacing",
+			"type": "shell",
+			"command": "C:\\Program Files\\nodejs\\npx.cmd",
+			"args": [
+				"playwright",
+				"test",
+				"tests\\e2e\\request-form.spec.ts",
+				"--grep",
+				"edit request does not render trailing empty scroll space",
+				"--output=test-results\\request-form-spacing"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "Test CreditGuard edit form spacing",
+			"type": "shell",
+			"command": "C:\\Program Files\\nodejs\\npx.cmd",
+			"args": [
+				"playwright",
+				"test",
+				"request-form.spec.ts",
+				"--grep",
+				"edit request does not render trailing empty scroll space",
+				"--output=test-results\\request-form-spacing"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "Test CreditGuard form spacing regression",
+			"type": "shell",
+			"command": "C:\\Program Files\\nodejs\\npx.cmd",
+			"args": [
+				"playwright",
+				"test",
+				"request-form.spec.ts",
+				"--grep",
+				"edit request does not render trailing empty scroll space",
+				"--output=test-results\\request-form-spacing"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "Test CreditGuard reviewer reassignment",
+			"type": "shell",
+			"command": "C:\\Program Files\\nodejs\\npx.cmd",
+			"args": [
+				"playwright",
+				"test",
+				"request-form.spec.ts",
+				"--grep",
+				"requestor reassigns an Under Review request",
+				"--output=test-results\\reviewer-reassignment"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "Test CreditGuard reviewer completion",
+			"type": "shell",
+			"command": "C:\\Program Files\\nodejs\\npx.cmd",
+			"args": [
+				"playwright",
+				"test",
+				"request-form.spec.ts",
+				"--grep",
+				"assigned reviewer can attach",
+				"--output=test-results\\assigned-reviewer-completion"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
 		}
 	]
 }

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import * as Icons from 'lucide-react';
 import { clsx } from 'clsx';
@@ -78,13 +78,22 @@ export function AppSidebar({ collapsed }: Props) {
   const navigate = useNavigate();
   const [menus, setMenus] = useState<MenuNode[]>([]);
 
-  useEffect(() => {
+  const loadMenus = useCallback(() => {
     const query = selectedOrg ? `?orgId=${encodeURIComponent(selectedOrg.id)}` : '';
     api
       .get<MenuNode[]>(`/menus/mine${query}`)
       .then(setMenus)
       .catch(() => setMenus([]));
   }, [api, selectedOrg]);
+
+  useEffect(() => {
+    loadMenus();
+  }, [loadMenus, location.pathname]);
+
+  useEffect(() => {
+    window.addEventListener('focus', loadMenus);
+    return () => window.removeEventListener('focus', loadMenus);
+  }, [loadMenus]);
 
   const hasGlobalUsers = (nodes: MenuNode[]): boolean =>
     nodes.some((node) => node.route === '/admin/users' || hasGlobalUsers(node.children));

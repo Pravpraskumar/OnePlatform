@@ -39,7 +39,7 @@ export function AppShell() {
   } as React.CSSProperties;
 
   return (
-    <div className="flex h-screen flex-col">
+    <div className="fixed inset-0 flex flex-col overflow-hidden">
       <SiteBanner />
       <AppHeader onToggleSidebar={() => setCollapsed((c) => !c)} onOpenThemeCustomizer={() => setThemeCustomizerOpen(true)} moduleName={moduleName} />
       <div className="user-theme flex flex-1 overflow-hidden" style={themeStyle}>
