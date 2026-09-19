@@ -2,7 +2,7 @@
 
 Designer Platform is an enterprise, multi-tenant SaaS monorepo. It provides a shared administration plane, organisation and user management, concurrent-seat licensing, and independently deployable product services. CreditGuard is the first implemented product; PRIME currently exposes a placeholder service.
 
-For a visual overview of the technology stack, service boundaries, data ownership, security, deployment, and key workflows, see [Architecture Guide](docs/ARCHITECTURE.md). For a model-oriented description of routes, state, APIs, data ownership, and business rules, see [Application Logic](docs/APPLICATION_LOGIC.md).
+For a visual overview of the technology stack, service boundaries, data ownership, security, deployment, and key workflows, see [Architecture Guide](docs/ARCHITECTURE.md). For a model-oriented description of routes, state, APIs, data ownership, and business rules, see [Application Logic](docs/APPLICATION_LOGIC.md). For the interactive identity, organisation, role, product, project, and session access model, open the [User Access Guide](docs/USER_ACCESS_GUIDE.html).
 
 ## Repository layout
 
@@ -47,7 +47,21 @@ For a visual overview of the technology stack, service boundaries, data ownershi
    docker compose -f infra/docker-compose.yml up -d
    ```
 
-   The container creates `platform_core`, `creditguard`, and `prime`.
+   The PostgreSQL container creates `platform_core`, `creditguard`, and `prime`. To also start the local SQL Server connection target for PRIME, create untracked `infra/.env` from `infra/.env.example`, set a new strong `MSSQL_SA_PASSWORD`, and enable its Compose profile:
+
+   ```bash
+   docker compose -f infra/docker-compose.yml --profile mssql up -d
+   ```
+
+   Compose creates the SQL Server `prime` database after the container is healthy. Starting Compose without the profile remains PostgreSQL-only.
+
+   Connect to the running SQL Server without placing its password in command history:
+
+   ```powershell
+   docker exec -it mssql_server /bin/bash -lc '/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "$MSSQL_SA_PASSWORD" -C'
+   ```
+
+   The 2022 image uses `/opt/mssql-tools18/bin/sqlcmd`; the older `/opt/mssql-tools/bin/sqlcmd` path is not used by this configuration.
 
 5. Generate/apply the required Drizzle migrations, then seed the core database:
 

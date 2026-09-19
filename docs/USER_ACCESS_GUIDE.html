@@ -1,0 +1,755 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Visual guide to identity, organisation, product, role, menu, project, and session access in Designer Platform.">
+  <title>Designer Platform | User Access Guide</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #172126;
+      --muted: #5d6a70;
+      --paper: #f4f7f5;
+      --surface: #ffffff;
+      --line: #ccd6d1;
+      --strong-line: #99aaa2;
+      --green: #176b50;
+      --green-soft: #e3f3eb;
+      --lime: #a8c94a;
+      --amber: #a85f12;
+      --amber-soft: #fff0d8;
+      --red: #a83b35;
+      --red-soft: #fde9e6;
+      --blue: #285d7a;
+      --blue-soft: #e7f1f6;
+      --focus: #106d9a;
+      --shadow: 0 14px 35px rgba(25, 48, 39, 0.09);
+    }
+
+    * { box-sizing: border-box; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      font-family: Aptos, "Trebuchet MS", sans-serif;
+      background-color: var(--paper);
+      background-image:
+        linear-gradient(rgba(23, 107, 80, 0.045) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(23, 107, 80, 0.045) 1px, transparent 1px);
+      background-size: 32px 32px;
+    }
+
+    button, input { font: inherit; }
+    button { letter-spacing: 0; }
+    a { color: inherit; }
+
+    .shell {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: 248px minmax(0, 1fr);
+    }
+
+    .rail {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      padding: 28px 22px;
+      color: #f4fbf7;
+      background: #18372d;
+      border-right: 1px solid #0e2a21;
+      overflow-y: auto;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      margin-bottom: 38px;
+    }
+
+    .brand-mark {
+      width: 34px;
+      height: 34px;
+      display: grid;
+      place-items: center;
+      font-family: Georgia, serif;
+      font-size: 20px;
+      font-weight: 700;
+      color: #18372d;
+      background: var(--lime);
+      border-radius: 4px;
+    }
+
+    .brand strong { display: block; font-size: 15px; }
+    .brand small { display: block; margin-top: 2px; color: #b9ccc4; font-size: 11px; }
+
+    .rail-label {
+      margin: 22px 0 8px;
+      color: #8fa79d;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .rail a {
+      display: block;
+      padding: 9px 10px;
+      color: #dce9e3;
+      font-size: 13px;
+      text-decoration: none;
+      border-left: 2px solid transparent;
+    }
+
+    .rail a:hover,
+    .rail a:focus-visible {
+      color: #ffffff;
+      background: rgba(255, 255, 255, 0.06);
+      border-left-color: var(--lime);
+      outline: none;
+    }
+
+    .rail-note {
+      margin-top: 32px;
+      padding: 12px;
+      color: #c8d9d1;
+      font-size: 11px;
+      line-height: 1.5;
+      border: 1px solid #416258;
+      border-radius: 6px;
+    }
+
+    main { min-width: 0; }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 64px;
+      padding: 12px clamp(20px, 4vw, 58px);
+      background: rgba(244, 247, 245, 0.94);
+      border-bottom: 1px solid var(--line);
+      backdrop-filter: blur(10px);
+    }
+
+    .crumb { color: var(--muted); font-size: 12px; }
+    .classification { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; }
+    .status-dot { width: 8px; height: 8px; background: var(--green); border-radius: 50%; }
+
+    .content {
+      width: min(1180px, calc(100% - 40px));
+      margin: 0 auto;
+      padding: 46px 0 80px;
+    }
+
+    .intro {
+      display: grid;
+      grid-template-columns: minmax(0, 1.35fr) minmax(260px, 0.65fr);
+      gap: 44px;
+      align-items: end;
+      padding-bottom: 34px;
+      border-bottom: 1px solid var(--strong-line);
+    }
+
+    .eyebrow { margin: 0 0 10px; color: var(--green); font-size: 12px; font-weight: 800; text-transform: uppercase; }
+    h1, h2, h3 { font-family: Georgia, "Times New Roman", serif; font-weight: 600; letter-spacing: 0; }
+    h1 { max-width: 760px; margin: 0; font-size: clamp(38px, 5vw, 68px); line-height: 0.98; }
+    h2 { margin: 0 0 10px; font-size: clamp(27px, 3vw, 38px); }
+    h3 { margin: 0; font-size: 20px; }
+    .lede { max-width: 760px; margin: 20px 0 0; color: var(--muted); font-size: 17px; line-height: 1.65; }
+
+    .equation {
+      padding: 20px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-top: 4px solid var(--green);
+      border-radius: 6px;
+      box-shadow: var(--shadow);
+    }
+
+    .equation strong { display: block; margin-bottom: 12px; font-family: Georgia, serif; font-size: 17px; }
+    .equation code { display: block; color: var(--green); font-size: 13px; line-height: 1.75; white-space: normal; }
+
+    section { padding-top: 64px; scroll-margin-top: 76px; }
+    .section-head { display: flex; align-items: end; justify-content: space-between; gap: 24px; margin-bottom: 24px; }
+    .section-head p { max-width: 620px; margin: 0; color: var(--muted); line-height: 1.6; }
+
+    .mode-tabs,
+    .scenario-tabs {
+      display: inline-flex;
+      gap: 3px;
+      padding: 4px;
+      background: #dfe7e3;
+      border-radius: 6px;
+    }
+
+    .mode-tabs button,
+    .scenario-tabs button {
+      min-height: 36px;
+      padding: 7px 13px;
+      color: #4d5e56;
+      background: transparent;
+      border: 0;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .mode-tabs button[aria-selected="true"],
+    .scenario-tabs button[aria-selected="true"] {
+      color: #ffffff;
+      background: var(--green);
+    }
+
+    button:focus-visible, input:focus-visible, a:focus-visible { outline: 3px solid rgba(16, 109, 154, 0.34); outline-offset: 2px; }
+
+    .flow-panel {
+      position: relative;
+      overflow: hidden;
+      min-height: 310px;
+      padding: 30px;
+      background: #142c25;
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+    }
+
+    .flow-view[hidden] { display: none; }
+
+    .flow-line {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(110px, 1fr));
+      gap: 22px;
+      align-items: stretch;
+      overflow-x: auto;
+      padding: 24px 4px 20px;
+    }
+
+    .flow-node {
+      position: relative;
+      min-height: 164px;
+      padding: 16px;
+      color: #eaf4ef;
+      background: #1d4035;
+      border: 1px solid #41665a;
+      border-radius: 6px;
+    }
+
+    .flow-node:not(:last-child)::after {
+      content: "";
+      position: absolute;
+      top: 50%;
+      left: calc(100% + 1px);
+      width: 22px;
+      height: 2px;
+      background: #73998b;
+    }
+
+    .flow-node:not(:last-child)::before {
+      content: "";
+      position: absolute;
+      z-index: 2;
+      top: calc(50% - 3px);
+      left: calc(100% + 1px);
+      width: 7px;
+      height: 7px;
+      background: var(--lime);
+      border-radius: 50%;
+      animation: travel 2.4s linear infinite;
+    }
+
+    @keyframes travel { from { transform: translateX(0); } to { transform: translateX(22px); } }
+
+    .step-number {
+      display: inline-grid;
+      width: 25px;
+      height: 25px;
+      place-items: center;
+      margin-bottom: 18px;
+      color: #142c25;
+      background: var(--lime);
+      border-radius: 50%;
+      font-size: 11px;
+      font-weight: 800;
+    }
+
+    .flow-node h3 { margin-bottom: 8px; font-size: 17px; }
+    .flow-node p { margin: 0; color: #bcd0c7; font-size: 12px; line-height: 1.55; }
+    .flow-caption { margin: 8px 4px 0; color: #9fb8ad; font-size: 11px; }
+
+    .gate-layout { display: grid; grid-template-columns: minmax(280px, 0.78fr) minmax(0, 1.22fr); gap: 20px; }
+    .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; box-shadow: var(--shadow); }
+    .panel-head { padding: 20px 22px; border-bottom: 1px solid var(--line); }
+    .panel-head p { margin: 6px 0 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
+    .panel-body { padding: 20px 22px; }
+
+    .switch-row { display: grid; grid-template-columns: 42px 1fr; gap: 12px; align-items: start; padding: 12px 0; border-bottom: 1px solid #e7ece9; }
+    .switch-row:last-child { border-bottom: 0; }
+    .switch-row input { appearance: none; width: 38px; height: 22px; margin: 1px 0 0; background: #b9c4bf; border-radius: 11px; cursor: pointer; transition: background 160ms ease; }
+    .switch-row input::before { content: ""; display: block; width: 16px; height: 16px; margin: 3px; background: white; border-radius: 50%; transition: transform 160ms ease; box-shadow: 0 1px 4px rgba(0,0,0,.22); }
+    .switch-row input:checked { background: var(--green); }
+    .switch-row input:checked::before { transform: translateX(16px); }
+    .switch-copy label { display: block; font-size: 13px; font-weight: 700; cursor: pointer; }
+    .switch-copy small { display: block; margin-top: 3px; color: var(--muted); line-height: 1.4; }
+
+    .decision {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      padding: 18px 20px;
+      background: var(--green-soft);
+      border-left: 4px solid var(--green);
+      border-radius: 4px;
+      transition: background 180ms ease, border-color 180ms ease;
+    }
+
+    .decision.denied { background: var(--red-soft); border-left-color: var(--red); }
+    .decision b { display: block; font-family: Georgia, serif; font-size: 21px; }
+    .decision span { color: var(--muted); font-size: 12px; }
+    .decision-badge { flex: 0 0 auto; padding: 7px 10px; color: #fff; background: var(--green); border-radius: 4px; font-size: 11px; font-weight: 800; text-transform: uppercase; }
+    .decision.denied .decision-badge { background: var(--red); }
+
+    .gate-stack { margin-top: 20px; }
+    .gate-item { display: grid; grid-template-columns: 28px 1fr auto; gap: 12px; align-items: center; min-height: 54px; padding: 10px 0; border-bottom: 1px solid #e4eae7; }
+    .gate-index { display: grid; width: 25px; height: 25px; place-items: center; color: var(--blue); background: var(--blue-soft); border-radius: 4px; font-size: 11px; font-weight: 800; }
+    .gate-item strong { display: block; font-size: 13px; }
+    .gate-item small { color: var(--muted); }
+    .gate-state { color: var(--green); font-size: 11px; font-weight: 800; text-transform: uppercase; }
+    .gate-item.failed .gate-index { color: var(--red); background: var(--red-soft); }
+    .gate-item.failed .gate-state { color: var(--red); }
+    .gate-item.blocked { opacity: .48; }
+
+    .matrix-wrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; box-shadow: var(--shadow); }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { padding: 14px 16px; text-align: left; vertical-align: top; border-bottom: 1px solid #dfe6e2; }
+    th { color: #425149; background: #edf2ef; font-size: 11px; text-transform: uppercase; }
+    tbody tr:last-child td { border-bottom: 0; }
+    td strong { display: block; margin-bottom: 3px; }
+    td code { color: var(--blue); font-size: 11px; }
+
+    .scope-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    .scope {
+      min-height: 190px;
+      padding: 22px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-top: 4px solid var(--blue);
+      border-radius: 6px;
+    }
+    .scope:nth-child(2) { border-top-color: var(--green); }
+    .scope:nth-child(3) { border-top-color: var(--amber); }
+    .scope-kicker { color: var(--muted); font-size: 10px; font-weight: 800; text-transform: uppercase; }
+    .scope h3 { margin: 9px 0; }
+    .scope p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.55; }
+    .scope ul { margin: 14px 0 0; padding-left: 18px; font-size: 12px; line-height: 1.65; }
+
+    .relationship {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 0;
+      overflow: hidden;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      box-shadow: var(--shadow);
+    }
+    .relation-column { min-height: 260px; padding: 22px; border-right: 1px solid var(--line); }
+    .relation-column:last-child { border-right: 0; }
+    .relation-column h3 { margin-bottom: 16px; }
+    .entity { margin-bottom: 9px; padding: 10px; color: #2a443a; background: var(--green-soft); border-left: 3px solid var(--green); font-size: 12px; }
+    .entity.secondary { color: #38576a; background: var(--blue-soft); border-left-color: var(--blue); }
+    .entity.control { color: #704713; background: var(--amber-soft); border-left-color: var(--amber); }
+
+    .scenario-content { margin-top: 18px; }
+    .scenario-content[hidden] { display: none; }
+    .scenario-layout { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 18px; }
+    .timeline { margin: 0; padding: 0; list-style: none; counter-reset: timeline; }
+    .timeline li { position: relative; min-height: 78px; padding: 4px 0 24px 58px; counter-increment: timeline; }
+    .timeline li::before { content: counter(timeline); position: absolute; top: 0; left: 0; z-index: 2; display: grid; width: 34px; height: 34px; place-items: center; color: #fff; background: var(--green); border-radius: 50%; font-size: 12px; font-weight: 800; }
+    .timeline li:not(:last-child)::after { content: ""; position: absolute; top: 34px; bottom: 0; left: 16px; width: 2px; background: var(--line); }
+    .timeline strong { display: block; margin-bottom: 5px; }
+    .timeline span { color: var(--muted); font-size: 13px; line-height: 1.5; }
+    .callout { padding: 18px; background: var(--amber-soft); border: 1px solid #e4c18e; border-radius: 6px; }
+    .callout strong { display: block; margin-bottom: 8px; }
+    .callout p { margin: 0; color: #6a4b25; font-size: 12px; line-height: 1.55; }
+
+    .security-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+    .security-item { padding: 18px 20px; background: var(--surface); border: 1px solid var(--line); border-left: 4px solid var(--red); border-radius: 6px; }
+    .security-item strong { display: block; margin-bottom: 7px; }
+    .security-item p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.55; }
+
+    .checklist { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0 34px; margin: 0; padding: 22px 26px; list-style: none; background: #18372d; color: #ecf5f1; border-radius: 6px; }
+    .checklist li { position: relative; padding: 12px 0 12px 30px; border-bottom: 1px solid #36584d; font-size: 13px; line-height: 1.45; }
+    .checklist li::before { content: "✓"; position: absolute; left: 0; color: var(--lime); font-weight: 800; }
+
+    footer { margin-top: 64px; padding-top: 22px; color: var(--muted); border-top: 1px solid var(--strong-line); font-size: 12px; line-height: 1.6; }
+
+    @media (max-width: 980px) {
+      .shell { grid-template-columns: 1fr; }
+      .rail { position: static; height: auto; padding: 18px 20px; }
+      .rail nav, .rail-note { display: none; }
+      .brand { margin: 0; }
+      .intro, .gate-layout, .scenario-layout { grid-template-columns: 1fr; }
+      .scope-grid { grid-template-columns: 1fr; }
+      .relationship { grid-template-columns: repeat(2, 1fr); }
+      .relation-column:nth-child(2) { border-right: 0; }
+      .relation-column:nth-child(-n+2) { border-bottom: 1px solid var(--line); }
+    }
+
+    @media (max-width: 640px) {
+      .content { width: min(100% - 28px, 1180px); padding-top: 30px; }
+      .topbar { padding: 10px 14px; }
+      .classification { display: none; }
+      h1 { font-size: 40px; }
+      section { padding-top: 48px; }
+      .section-head { display: block; }
+      .section-head p { margin-top: 8px; }
+      .mode-tabs, .scenario-tabs { display: grid; grid-template-columns: repeat(3, 1fr); width: 100%; margin-top: 16px; }
+      .flow-panel { padding: 18px; }
+      .relationship, .security-grid, .checklist { grid-template-columns: 1fr; }
+      .relation-column { border-right: 0; border-bottom: 1px solid var(--line); }
+      .relation-column:last-child { border-bottom: 0; }
+      .checklist { gap: 0; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+    }
+
+    @media print {
+      .rail, .topbar, .mode-tabs, .scenario-tabs, .simulator-controls { display: none !important; }
+      .shell { display: block; }
+      .content { width: 100%; padding: 0; }
+      section { break-inside: avoid; padding-top: 30px; }
+      .flow-view[hidden], .scenario-content[hidden] { display: block; margin-top: 20px; }
+      .panel, .flow-panel, .matrix-wrap { box-shadow: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <aside class="rail" aria-label="Guide navigation">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">D</span>
+        <span><strong>Designer Platform</strong><small>Access control map</small></span>
+      </div>
+      <nav>
+        <div class="rail-label">Understand</div>
+        <a href="#overview">Access equation</a>
+        <a href="#flow">Animated flow</a>
+        <a href="#simulator">Gate evaluator</a>
+        <div class="rail-label">Configure</div>
+        <a href="#scopes">Access dimensions</a>
+        <a href="#assignments">Assignment matrix</a>
+        <a href="#scenarios">Admin procedures</a>
+        <div class="rail-label">Operate</div>
+        <a href="#data-model">Data model</a>
+        <a href="#security">Security boundaries</a>
+        <a href="#checklist">Verification checklist</a>
+      </nav>
+      <div class="rail-note">UI visibility guides the user. API authorization remains the security boundary.</div>
+    </aside>
+
+    <main>
+      <header class="topbar">
+        <span class="crumb">Documentation / Identity &amp; Access</span>
+        <span class="classification"><span class="status-dot" aria-hidden="true"></span>Implementation-aligned guide</span>
+      </header>
+
+      <div class="content">
+        <section class="intro" id="overview">
+          <div>
+            <p class="eyebrow">User access mechanism</p>
+            <h1>Who can enter, where, and why.</h1>
+            <p class="lede">Designer Platform does not grant application access with one role. Access is the result of identity, tenant membership, product licensing, optional team and project restrictions, screen grants, and an available concurrent session.</p>
+          </div>
+          <aside class="equation" aria-label="Access equation">
+            <strong>Effective access</strong>
+            <code>Authenticated user</code>
+            <code>+ active organisation membership</code>
+            <code>+ active product allocation</code>
+            <code>+ eligible team / project</code>
+            <code>+ role and menu grant</code>
+            <code>+ available session seat</code>
+          </aside>
+        </section>
+
+        <section id="flow">
+          <div class="section-head">
+            <div><p class="eyebrow">Animated control flow</p><h2>Access from setup to revocation</h2></div>
+            <div class="mode-tabs" role="tablist" aria-label="Access flow mode">
+              <button type="button" role="tab" aria-selected="true" aria-controls="provision-flow" id="provision-tab" data-flow="provision-flow">Provision</button>
+              <button type="button" role="tab" aria-selected="false" aria-controls="runtime-flow" id="runtime-tab" data-flow="runtime-flow">Runtime</button>
+              <button type="button" role="tab" aria-selected="false" aria-controls="revoke-flow" id="revoke-tab" data-flow="revoke-flow">Revoke</button>
+            </div>
+          </div>
+
+          <div class="flow-panel">
+            <div class="flow-view" id="provision-flow" role="tabpanel" aria-labelledby="provision-tab">
+              <div class="flow-line">
+                <article class="flow-node"><span class="step-number">1</span><h3>Create identity</h3><p>Global Administrator creates a local user, or B2C provisions/links the user at first sign-in.</p></article>
+                <article class="flow-node"><span class="step-number">2</span><h3>Add membership</h3><p>Add the user to the organisation as Owner, Admin, or Member and keep the membership active.</p></article>
+                <article class="flow-node"><span class="step-number">3</span><h3>Assign product</h3><p>License the product to the organisation with active status, seats, and an optional expiry date.</p></article>
+                <article class="flow-node"><span class="step-number">4</span><h3>Narrow eligibility</h3><p>Optionally bind the module to a team. No team means all active organisation members are eligible.</p></article>
+                <article class="flow-node"><span class="step-number">5</span><h3>Assign role</h3><p>Give the user a product capability such as CreditGuard Requestor or Reviewer.</p></article>
+                <article class="flow-node"><span class="step-number">6</span><h3>Grant screens</h3><p>Map roles to menus as readonly or editable. Product menus also require an active organisation allocation.</p></article>
+                <article class="flow-node"><span class="step-number">7</span><h3>Allocate project</h3><p>If the module uses projects, allocate seats to a project and assign the user to that project.</p></article>
+              </div>
+              <p class="flow-caption">Configuration is cumulative. A role by itself does not create tenant or licensed-product access.</p>
+            </div>
+
+            <div class="flow-view" id="runtime-flow" role="tabpanel" aria-labelledby="runtime-tab" hidden>
+              <div class="flow-line">
+                <article class="flow-node"><span class="step-number">1</span><h3>Authenticate</h3><p>Local JWT or Azure AD B2C token establishes the platform identity.</p></article>
+                <article class="flow-node"><span class="step-number">2</span><h3>Select tenant</h3><p>The active organisation drives menus, products, projects, and all tenant-scoped calls.</p></article>
+                <article class="flow-node"><span class="step-number">3</span><h3>Resolve menus</h3><p>Core merges role grants, upgrades editable over readonly, and removes unlicensed product screens.</p></article>
+                <article class="flow-node"><span class="step-number">4</span><h3>Resolve project</h3><p>A project is mandatory when the organisation module has project allocations.</p></article>
+                <article class="flow-node"><span class="step-number">5</span><h3>Open lease</h3><p>Core locks the module allocation, verifies eligibility, counts active sessions, and reserves a seat.</p></article>
+                <article class="flow-node"><span class="step-number">6</span><h3>Authorize API</h3><p>Backend guards verify identity, organisation authority, resource ownership, and workflow rules.</p></article>
+                <article class="flow-node"><span class="step-number">7</span><h3>Keep alive</h3><p>The SPA heartbeats every 30 seconds. Final unmount releases the lease; the reaper closes idle leases.</p></article>
+              </div>
+              <p class="flow-caption">The browser improves navigation, but the server must independently reject unauthorized calls.</p>
+            </div>
+
+            <div class="flow-view" id="revoke-flow" role="tabpanel" aria-labelledby="revoke-tab" hidden>
+              <div class="flow-line">
+                <article class="flow-node"><span class="step-number">1</span><h3>Change control</h3><p>Suspend the user or membership, remove a role, team member, project assignment, or product allocation.</p></article>
+                <article class="flow-node"><span class="step-number">2</span><h3>Menus recalculate</h3><p>The next menu request removes screens no longer granted or licensed.</p></article>
+                <article class="flow-node"><span class="step-number">3</span><h3>Heartbeat checks</h3><p>Active membership, product allocation, team membership, and project access are checked again.</p></article>
+                <article class="flow-node"><span class="step-number">4</span><h3>Lease closes</h3><p>If access is revoked, the session receives an end time and the heartbeat fails.</p></article>
+                <article class="flow-node"><span class="step-number">5</span><h3>API denies</h3><p>Tenant and workflow checks continue to block direct calls regardless of stale browser state.</p></article>
+                <article class="flow-node"><span class="step-number">6</span><h3>Seat returns</h3><p>Closed or timed-out sessions stop counting against the concurrent allocation.</p></article>
+                <article class="flow-node"><span class="step-number">7</span><h3>Audit outcome</h3><p>Administrators verify effective access and running sessions after the change.</p></article>
+              </div>
+              <p class="flow-caption">Revocation is enforced at runtime; it does not depend only on hiding a navigation item.</p>
+            </div>
+          </div>
+        </section>
+
+        <section id="simulator">
+          <div class="section-head">
+            <div><p class="eyebrow">Interactive evaluator</p><h2>Why can this user open the product?</h2></div>
+            <p>Toggle a condition to see the first gate that denies a product session. This models the runtime decision chain, not a substitute for an API test.</p>
+          </div>
+          <div class="gate-layout">
+            <div class="panel simulator-controls">
+              <div class="panel-head"><h3>Access conditions</h3><p>Example: a project-scoped CreditGuard user.</p></div>
+              <div class="panel-body" id="gate-controls">
+                <div class="switch-row"><input id="gate-auth" type="checkbox" checked><div class="switch-copy"><label for="gate-auth">Authenticated identity</label><small>Active local JWT or validated B2C token.</small></div></div>
+                <div class="switch-row"><input id="gate-member" type="checkbox" checked><div class="switch-copy"><label for="gate-member">Active organisation membership</label><small>Owner, Admin, or Member in the selected tenant.</small></div></div>
+                <div class="switch-row"><input id="gate-module" type="checkbox" checked><div class="switch-copy"><label for="gate-module">Active product allocation</label><small>Organisation module exists and is active.</small></div></div>
+                <div class="switch-row"><input id="gate-team" type="checkbox" checked><div class="switch-copy"><label for="gate-team">Team eligible</label><small>Required only when a team is bound to the module.</small></div></div>
+                <div class="switch-row"><input id="gate-project" type="checkbox" checked><div class="switch-copy"><label for="gate-project">Project eligible</label><small>User and module are both assigned to the selected project.</small></div></div>
+                <div class="switch-row"><input id="gate-seat" type="checkbox" checked><div class="switch-copy"><label for="gate-seat">Concurrent seat available</label><small>Active lease count is below the applicable seat limit.</small></div></div>
+                <div class="switch-row"><input id="gate-capability" type="checkbox" checked><div class="switch-copy"><label for="gate-capability">Role permits action</label><small>Workflow endpoint revalidates the required capability.</small></div></div>
+              </div>
+            </div>
+
+            <div class="panel">
+              <div class="panel-head"><h3>Decision trace</h3><p>The first failed condition stops access; later checks are not sufficient to override it.</p></div>
+              <div class="panel-body">
+                <div class="decision" id="decision" aria-live="polite"><div><b id="decision-title">Product access allowed</b><span id="decision-detail">All runtime gates are satisfied.</span></div><span class="decision-badge" id="decision-badge">Allowed</span></div>
+                <div class="gate-stack" id="gate-stack"></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="scopes">
+          <div class="section-head"><div><p class="eyebrow">Three different questions</p><h2>Roles, membership, and licensing</h2></div><p>These controls overlap in the user experience but represent different authority and data relationships.</p></div>
+          <div class="scope-grid">
+            <article class="scope"><span class="scope-kicker">Who are you?</span><h3>Role capability</h3><p>A role describes platform or product behavior. Product-linked roles are assigned to the user and contribute menu grants.</p><ul><li>Global Administrator</li><li>Organisation Administrator</li><li>General User</li><li>CreditGuard Requestor</li><li>CreditGuard Reviewer</li></ul></article>
+            <article class="scope"><span class="scope-kicker">Where may you act?</span><h3>Organisation context</h3><p>Membership establishes tenant access and administrative authority. Active Owner/Admin membership can manage organisation configuration.</p><ul><li>Owner</li><li>Admin</li><li>Member</li><li>Optional team membership</li><li>Optional project membership</li></ul></article>
+            <article class="scope"><span class="scope-kicker">What is available?</span><h3>Product allocation</h3><p>An organisation module connects a tenant to a product and controls availability, team restriction, dates, and concurrent seats.</p><ul><li>Product active state</li><li>Module active state</li><li>Validity window</li><li>Licensed seats</li><li>Project seat allocations</li></ul></article>
+          </div>
+        </section>
+
+        <section id="assignments">
+          <div class="section-head"><div><p class="eyebrow">Control ownership</p><h2>Assignment matrix</h2></div><p>Use the owning administration surface. Do not emulate access by editing product-domain records.</p></div>
+          <div class="matrix-wrap">
+            <table>
+              <thead><tr><th>Access control</th><th>Who configures it</th><th>UI surface</th><th>Core API / persistence</th><th>Runtime effect</th></tr></thead>
+              <tbody>
+                <tr><td><strong>User identity &amp; status</strong>Local or B2C-linked person</td><td>Global Administrator; B2C JIT provisioning</td><td>Global Administration → Users</td><td><code>/users</code><br><code>users</code></td><td>Suspended identities cannot establish normal access.</td></tr>
+                <tr><td><strong>Organisation membership</strong>Owner / Admin / Member</td><td>Global Administrator or authorised organisation administrator</td><td>Organisation → Members</td><td><code>/organisations/:id/team</code><br><code>organisation_users</code></td><td>Scopes tenant data and grants organisation authority.</td></tr>
+                <tr><td><strong>Product / app assignment</strong>Organisation module and seats</td><td>Global Administrator</td><td>Global Administration → Licenses</td><td><code>PUT /organisations/:id/modules</code><br><code>organisation_modules</code></td><td>Makes product menus and product sessions available to the tenant.</td></tr>
+                <tr><td><strong>Team restriction</strong>Optional module audience</td><td>Owner, Admin, or Global Administrator</td><td>Organisation → Teams</td><td><code>PUT /organisations/:id/modules/:productId/team</code><br><code>organisation_team_users</code></td><td>When set, only members of the assigned team can open the module.</td></tr>
+                <tr><td><strong>User role</strong>Platform or product capability</td><td>Global Administrator</td><td>Global Administration → User Assignments</td><td><code>POST /users/:id/roles</code><br><code>user_roles</code></td><td>Contributes menu grants and capability checks.</td></tr>
+                <tr><td><strong>Role → menu grant</strong>Readonly or editable screen access</td><td>Global Administrator</td><td>Global Administration → Roles</td><td><code>PUT /roles/:id/menus</code><br><code>roles_menus</code></td><td>Controls navigation and supported UI edit states; it is not sufficient API authorization.</td></tr>
+                <tr><td><strong>Project allocation</strong>Module seats assigned to a project</td><td>Owner, Admin, or Global Administrator</td><td>Organisation → Projects</td><td><code>PUT /organisations/:id/project-modules</code><br><code>project_modules</code></td><td>Makes project selection mandatory and applies the project seat cap.</td></tr>
+                <tr><td><strong>User → project</strong>Member project eligibility</td><td>Owner, Admin, or Global Administrator</td><td>Organisation → Members</td><td><code>organisation_user_projects</code></td><td>User may select only assigned projects allocated to the module.</td></tr>
+                <tr><td><strong>Session lease</strong>Concurrent runtime seat</td><td>System; monitored by administrators</td><td>Global Administration → Sessions</td><td><code>/sessions</code><br><code>sessions</code></td><td>Reserves a seat, heartbeats, and closes on release or timeout.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="scenarios">
+          <div class="section-head">
+            <div><p class="eyebrow">Administrator procedures</p><h2>Common access scenarios</h2></div>
+            <div class="scenario-tabs" role="tablist" aria-label="Administrator scenario">
+              <button type="button" role="tab" aria-selected="true" aria-controls="new-user" id="new-user-tab" data-scenario="new-user">New user</button>
+              <button type="button" role="tab" aria-selected="false" aria-controls="reviewer-user" id="reviewer-user-tab" data-scenario="reviewer-user">Reviewer</button>
+              <button type="button" role="tab" aria-selected="false" aria-controls="remove-user" id="remove-user-tab" data-scenario="remove-user">Remove access</button>
+            </div>
+          </div>
+
+          <div class="scenario-content panel" id="new-user" role="tabpanel" aria-labelledby="new-user-tab">
+            <div class="panel-body scenario-layout">
+              <ol class="timeline">
+                <li><strong>Create or provision the user</strong><span>Create the identity under Global Administration, or allow B2C just-in-time provisioning. Keep the user active.</span></li>
+                <li><strong>Add the user to the organisation</strong><span>Choose Owner, Admin, or Member. Membership is separate from product role assignment.</span></li>
+                <li><strong>Confirm the organisation has the app</strong><span>Under Licenses, assign the product with active status, enough seats, and the intended expiry.</span></li>
+                <li><strong>Add team and project eligibility</strong><span>If restrictions exist, add the user to the module team and assign the member to each required project.</span></li>
+                <li><strong>Assign the product role</strong><span>Assign Requestor, Reviewer, or both. Menu grants come from the role configuration.</span></li>
+                <li><strong>Verify effective access</strong><span>Check user settings/effective access, then open the product and confirm a lease can be acquired.</span></li>
+              </ol>
+              <aside class="callout"><strong>Order matters</strong><p>A role can be assigned before tenant setup, but the user still cannot consume the product until organisation, team/project, and license gates are satisfied.</p></aside>
+            </div>
+          </div>
+
+          <div class="scenario-content panel" id="reviewer-user" role="tabpanel" aria-labelledby="reviewer-user-tab" hidden>
+            <div class="panel-body scenario-layout">
+              <ol class="timeline">
+                <li><strong>Confirm active organisation membership</strong><span>The reviewer must belong to the same organisation as the request.</span></li>
+                <li><strong>Confirm module eligibility</strong><span>If CreditGuard is bound to a team, add the reviewer to that exact team.</span></li>
+                <li><strong>Assign CreditGuard Reviewer</strong><span>The role is assigned in global user administration and is linked to the CreditGuard product.</span></li>
+                <li><strong>Verify the reviewer list</strong><span>The reviewer endpoint intersects membership, module allocation, team eligibility, and Reviewer role.</span></li>
+                <li><strong>Preserve current-reviewer authority</strong><span>Only the reviewer currently assigned to an Under Review request can complete its review.</span></li>
+              </ol>
+              <aside class="callout"><strong>Requestor is different</strong><p>The Requestor capability creates and manages requests. Reviewer eligibility is separately revalidated before assignment and notification.</p></aside>
+            </div>
+          </div>
+
+          <div class="scenario-content panel" id="remove-user" role="tabpanel" aria-labelledby="remove-user-tab" hidden>
+            <div class="panel-body scenario-layout">
+              <ol class="timeline">
+                <li><strong>Choose the narrowest control</strong><span>Remove a product role for one capability, a team/project assignment for scoped access, or suspend membership for the entire tenant.</span></li>
+                <li><strong>Understand active workflow ownership</strong><span>Reassign in-flight reviewer or administrative work before revoking the user where business rules require continuity.</span></li>
+                <li><strong>Apply the access change</strong><span>Use the owning administration surface; do not delete domain audit history.</span></li>
+                <li><strong>Allow runtime enforcement</strong><span>The next heartbeat closes a lease whose membership, module, team, or project access has been revoked.</span></li>
+                <li><strong>Verify menus and sessions</strong><span>Reload effective access and inspect active sessions to confirm the expected result.</span></li>
+              </ol>
+              <aside class="callout"><strong>Role removal is not full removal</strong><p>A user may still retain another role, tenant membership, or administration access. Review every access dimension before declaring access removed.</p></aside>
+            </div>
+          </div>
+        </section>
+
+        <section id="data-model">
+          <div class="section-head"><div><p class="eyebrow">Core control plane</p><h2>Access data relationships</h2></div><p>Identity and access records live in <code>platform_core</code>. Product-domain databases do not own platform identity or licensing.</p></div>
+          <div class="relationship" aria-label="Access control data model">
+            <div class="relation-column"><h3>Identity</h3><div class="entity">users</div><div class="entity">user_roles</div><div class="entity">roles</div><div class="entity secondary">roles_menus</div><div class="entity secondary">menus</div></div>
+            <div class="relation-column"><h3>Tenant</h3><div class="entity">organisations</div><div class="entity">organisation_users</div><div class="entity secondary">organisation_teams</div><div class="entity secondary">organisation_team_users</div><div class="entity secondary">module_user_designations</div></div>
+            <div class="relation-column"><h3>Product &amp; project</h3><div class="entity">products</div><div class="entity">organisation_modules</div><div class="entity secondary">projects</div><div class="entity secondary">project_modules</div><div class="entity secondary">organisation_user_projects</div></div>
+            <div class="relation-column"><h3>Runtime</h3><div class="entity control">sessions</div><div class="entity control">licensed_seats</div><div class="entity control">last_seen_at</div><div class="entity control">ended_at</div><div class="entity control">session reaper</div></div>
+          </div>
+        </section>
+
+        <section id="security">
+          <div class="section-head"><div><p class="eyebrow">Security boundaries</p><h2>What the model does not assume</h2></div><p>These constraints are part of the access design and should remain explicit during future changes.</p></div>
+          <div class="security-grid">
+            <article class="security-item"><strong>Menus are not authorization</strong><p>A hidden route or readonly menu is a presentation control. Every sensitive API must check identity, tenant authority, and resource ownership.</p></article>
+            <article class="security-item"><strong>Client organisation IDs are untrusted</strong><p>Any organisation ID from a route, query, or body must be matched against the authenticated user's active memberships.</p></article>
+            <article class="security-item"><strong>Product services are a trust boundary</strong><p>CreditGuard uses guarded identity introspection for sensitive workflows, but the service must not be directly exposed while all routes lack independent bearer-token enforcement.</p></article>
+            <article class="security-item"><strong>Readonly is not universal enforcement</strong><p>The menu access mode drives supported UI states. It is not a complete backend edit-permission system.</p></article>
+            <article class="security-item"><strong>No team means broad eligibility</strong><p>When an organisation module has no team, all active organisation members are module-eligible. Assign a team when the audience must be restricted.</p></article>
+            <article class="security-item"><strong>Seat leases are runtime state</strong><p>A browser crash may hold a seat until the configured inactivity window expires and the reaper closes the session.</p></article>
+            <article class="security-item"><strong>Role and membership are independent</strong><p>A product role does not identify the tenant. Membership does not automatically grant product workflow capability.</p></article>
+            <article class="security-item"><strong>Revocation must preserve audit records</strong><p>Remove future authority without deleting request, approval, session, or notification evidence required for traceability.</p></article>
+          </div>
+        </section>
+
+        <section id="checklist">
+          <div class="section-head"><div><p class="eyebrow">Operational verification</p><h2>Before reporting access as ready</h2></div><p>Validate the effective chain rather than checking only the last assignment changed.</p></div>
+          <ul class="checklist">
+            <li>User status is active and authentication succeeds.</li>
+            <li>Selected organisation is active and membership is active.</li>
+            <li>Membership level matches the required tenant authority.</li>
+            <li>Organisation module is active and within its intended validity window.</li>
+            <li>The product itself is active.</li>
+            <li>User belongs to the assigned module team, if one exists.</li>
+            <li>Required product role is assigned to the user.</li>
+            <li>Role contains the expected menu grants and access mode.</li>
+            <li>Project allocation and user-project assignment align, if required.</li>
+            <li>A concurrent seat is available for the applicable scope.</li>
+            <li>Backend endpoint authorizes the requested tenant/resource action.</li>
+            <li>Effective access and active sessions show the expected outcome.</li>
+          </ul>
+        </section>
+
+        <footer>
+          <strong>Source of truth:</strong> core authentication, organisation, role, menu, project, and licensing services; CreditGuard guards remain responsible for product-workflow authorization. This guide reflects the repository implementation as of 18 September 2026.
+        </footer>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    const activateTab = (button, selector, targetKey) => {
+      const group = button.closest('[role="tablist"]');
+      group.querySelectorAll('[role="tab"]').forEach((tab) => {
+        const selected = tab === button;
+        tab.setAttribute('aria-selected', String(selected));
+        tab.tabIndex = selected ? 0 : -1;
+      });
+      document.querySelectorAll(selector).forEach((panel) => {
+        panel.hidden = panel.id !== targetKey;
+      });
+    };
+
+    document.querySelectorAll('[data-flow]').forEach((button) => {
+      button.addEventListener('click', () => activateTab(button, '.flow-view', button.dataset.flow));
+    });
+
+    document.querySelectorAll('[data-scenario]').forEach((button) => {
+      button.addEventListener('click', () => activateTab(button, '.scenario-content', button.dataset.scenario));
+    });
+
+    document.querySelectorAll('[role="tablist"]').forEach((group) => {
+      group.addEventListener('keydown', (event) => {
+        if (!['ArrowLeft', 'ArrowRight'].includes(event.key)) return;
+        const tabs = [...group.querySelectorAll('[role="tab"]')];
+        const current = tabs.indexOf(document.activeElement);
+        const offset = event.key === 'ArrowRight' ? 1 : -1;
+        tabs[(current + offset + tabs.length) % tabs.length].click();
+        tabs[(current + offset + tabs.length) % tabs.length].focus();
+      });
+    });
+
+    const gates = [
+      { id: 'gate-auth', name: 'Identity', detail: 'No authenticated platform identity.' },
+      { id: 'gate-member', name: 'Organisation membership', detail: 'User is not an active member of the selected organisation.' },
+      { id: 'gate-module', name: 'Product allocation', detail: 'The organisation has no active allocation for this product.' },
+      { id: 'gate-team', name: 'Team eligibility', detail: 'The product is restricted to a team that does not contain this user.' },
+      { id: 'gate-project', name: 'Project eligibility', detail: 'The selected project is not allocated to both module and user.' },
+      { id: 'gate-seat', name: 'Session lease', detail: 'The applicable concurrent seat limit has been reached.' },
+      { id: 'gate-capability', name: 'Action capability', detail: 'The required role or workflow authority is missing.' }
+    ];
+
+    const renderDecision = () => {
+      const failedIndex = gates.findIndex((gate) => !document.getElementById(gate.id).checked);
+      const allowed = failedIndex === -1;
+      const decision = document.getElementById('decision');
+      decision.classList.toggle('denied', !allowed);
+      document.getElementById('decision-title').textContent = allowed ? 'Product access allowed' : `Denied at ${gates[failedIndex].name}`;
+      document.getElementById('decision-detail').textContent = allowed ? 'All runtime gates are satisfied.' : gates[failedIndex].detail;
+      document.getElementById('decision-badge').textContent = allowed ? 'Allowed' : 'Denied';
+
+      document.getElementById('gate-stack').innerHTML = gates.map((gate, index) => {
+        const passed = document.getElementById(gate.id).checked;
+        const blocked = failedIndex !== -1 && index > failedIndex;
+        const state = blocked ? 'Not reached' : passed ? 'Passed' : 'Failed';
+        return `<div class="gate-item ${passed ? '' : 'failed'} ${blocked ? 'blocked' : ''}"><span class="gate-index">${index + 1}</span><div><strong>${gate.name}</strong><small>${gate.detail}</small></div><span class="gate-state">${state}</span></div>`;
+      }).join('');
+    };
+
+    document.querySelectorAll('#gate-controls input').forEach((input) => input.addEventListener('change', renderDecision));
+    renderDecision();
+  </script>
+</body>
+</html>

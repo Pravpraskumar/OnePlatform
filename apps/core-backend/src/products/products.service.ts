@@ -73,6 +73,7 @@ export class ProductsService {
       .select({
         id: productDbConnections.id,
         productId: productDbConnections.productId,
+        databaseType: productDbConnections.databaseType,
         host: productDbConnections.host,
         port: productDbConnections.port,
         database: productDbConnections.database,
@@ -88,6 +89,7 @@ export class ProductsService {
   // Upsert a product DB connection; password is encrypted at rest.
   async upsertConnection(input: {
     productId: string;
+    databaseType?: 'postgresql' | 'mssql';
     host: string;
     port: number;
     database: string;
@@ -109,6 +111,7 @@ export class ProductsService {
       const [updated] = await this.db
         .update(productDbConnections)
         .set({
+          databaseType: input.databaseType ?? 'postgresql',
           host: input.host,
           port: input.port,
           database: input.database,
@@ -127,6 +130,7 @@ export class ProductsService {
       .insert(productDbConnections)
       .values({
         productId: input.productId,
+        databaseType: input.databaseType ?? 'postgresql',
         host: input.host,
         port: input.port,
         database: input.database,

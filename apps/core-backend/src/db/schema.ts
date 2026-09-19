@@ -21,6 +21,7 @@ export const membershipEnum = pgEnum('membership', ['Owner', 'Admin', 'Member'])
 export const statusEnum = pgEnum('entity_status', ['active', 'suspended', 'pending']);
 export const projectStatusEnum = pgEnum('project_status', ['planned', 'active', 'on_hold', 'completed', 'cancelled']);
 export const menuAccessModeEnum = pgEnum('menu_access_mode', ['readonly', 'editable']);
+export const databaseTypeEnum = pgEnum('database_type', ['postgresql', 'mssql']);
 
 export interface NotificationPreferences {
   accessChanges: boolean;
@@ -229,6 +230,7 @@ export const productDbConnections = pgTable('product_db_connections', {
     .notNull()
     .references(() => products.id, { onDelete: 'cascade' })
     .unique(),
+  databaseType: databaseTypeEnum('database_type').notNull().default('postgresql'),
   host: varchar('host', { length: 255 }).notNull(),
   port: integer('port').notNull().default(5432),
   database: varchar('database', { length: 200 }).notNull(),

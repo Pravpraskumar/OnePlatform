@@ -1,6 +1,10 @@
-import { IsBoolean, IsInt, IsString, Max, Min, MinLength } from 'class-validator';
+import { IsBoolean, IsIn, IsInt, IsOptional, IsString, Max, Min, MinLength } from 'class-validator';
 
 export class UpsertConnectionDto {
+  @IsOptional()
+  @IsIn(['postgresql', 'mssql'])
+  databaseType?: 'postgresql' | 'mssql';
+
   @IsString()
   @MinLength(1)
   host!: string;

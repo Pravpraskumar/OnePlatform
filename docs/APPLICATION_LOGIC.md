@@ -139,7 +139,7 @@ The sidebar is data-driven from `GET /api/menus/mine?orgId=...`. Menu trees cont
 | `/admin/user-assignments` | Status and global/org role assignments |
 | `/admin/user-settings` | Preferences, effective access, activity |
 | `/admin/organisations` | Organisation CRUD and status |
-| `/admin/connections` | Encrypted product database connection settings |
+| `/admin/connections` | Encrypted PostgreSQL or Microsoft SQL Server product database connection settings |
 | `/admin/licenses` | Organisation-product license assignment |
 | `/admin/settings` | Default org, session timeout, branding/banner |
 | `/admin/email-logs` | Global Administrator view of outbound module email attempts and delivery status |
@@ -236,7 +236,9 @@ Important relationships:
 ### Product databases
 
 - CreditGuard stores requests, reviewer assignment snapshots, request details, business entities, attachments, organisation-scoped approver contacts, and Signit envelope initiation references.
-- PRIME currently stores only a placeholder row type.
+- Core stores each product connection's database type, host, port, database, username, encryption flag, and encrypted password. Existing records default to PostgreSQL. PRIME defaults to a local Microsoft SQL Server target at `localhost:1433`, database `prime`, with connection encryption enabled; saving still requires an administrator-supplied password, which is encrypted at rest and never returned to the browser.
+- The opt-in `mssql` profile in `infra/docker-compose.yml` can run `mssql_server` from SQL Server 2022 Developer and idempotently create the `prime` database. The required `MSSQL_SA_PASSWORD` is supplied through untracked `infra/.env`; it is not committed. Use `/opt/mssql-tools18/bin/sqlcmd` inside the current image. Starting Compose without the profile remains PostgreSQL-only.
+- PRIME currently stores only a PostgreSQL-backed placeholder row type. The admin MSSQL connection record is configuration for the intended PRIME data source; converting PRIME's Drizzle schema and runtime driver to SQL Server requires a separately approved architecture and migration change.
 - Cross-database operations are not distributed transactions.
 
 ## 11. Seed behavior
@@ -259,7 +261,7 @@ Seed reruns restore seeded role-menu grants. A route rename may leave an obsolet
 | --- | --- |
 | Core | `CORE_DATABASE_URL`, `PORT`, `CORS_ORIGIN`, `B2C_TENANT_NAME`, `B2C_POLICY_NAME`, `B2C_CLIENT_ID`, optional `B2C_ISSUER`/`B2C_JWKS_URI`, `LOCAL_JWT_SECRET`, `LOCAL_JWT_EXPIRES_IN`, `CONNECTION_SECRET_KEY`, `CREDITGUARD_INTERNAL_API_KEY`, `SESSION_HEARTBEAT_WINDOW_SECONDS`, emergency-only `NEXT_PRIVATE_SMTP_UNSAFE_IGNORE_TLS`, seed admin values |
 | CreditGuard | `CREDITGUARD_DATABASE_URL`, `CORE_API_URL`, `CREDITGUARD_INTERNAL_API_KEY`, `PORT`, `CORS_ORIGIN`, `DOCUMENT_STORAGE_PROVIDER`, `DOCUMENT_LOCAL_ROOT`, `DOCUMENT_MAX_FILE_SIZE_MB`, `DOCUMENT_MAX_FILES_PER_REQUEST`, `AZURE_STORAGE_ACCOUNT_NAME`, `AZURE_STORAGE_CONTAINER`, optional `AZURE_STORAGE_CONNECTION_STRING` |
-| PRIME | `PRIME_DATABASE_URL`, `PORT`, `CORS_ORIGIN` |
+| PRIME | `PRIME_DATABASE_URL`, `PORT`, `CORS_ORIGIN`; local MSSQL container uses `MSSQL_SA_PASSWORD` from untracked `infra/.env` |
 | Frontend | `VITE_APP_NAME`, `VITE_API_BASE`, B2C tenant/policy/client/scope values |
 
 ## 13. Testing contract
@@ -267,6 +269,8 @@ Seed reruns restore seeded role-menu grants. A route rename may leave an obsolet
 Playwright tests use browser-level API interception and seeded local storage. Shared mocks reproduce authentication, organisation, products, menus, sessions, and product records. This exercises routing, React state, forms, network payloads, and error handling without external identity or database dependencies.
 
 Core migrations `0022_thankful_lockjaw.sql` and `0023_secret_bill_hollister.sql` must be applied before the Integration route is enabled and the core seed rerun to add its menu grant. Rollback removes the route/menu grant and application code first; integration columns or the table should only be dropped after confirming that stored Signit configuration is no longer required.
+
+Core migration `0025_workable_infant_terrible.sql` adds the `database_type` enum and a non-null `product_db_connections.database_type` column defaulted to `postgresql`; it does not rewrite existing connection values. Apply it before saving an MSSQL connection. Rollback first removes MSSQL UI/API use, changes any MSSQL rows back to PostgreSQL or removes them after owner approval, then drops the column and enum. To remove local SQL Server without deleting data, stop the `mssql` and `mssql-init` services; deleting the `mssqldata` volume is destructive and requires explicit approval.
 
 When adding a user-visible route or mutation:
 

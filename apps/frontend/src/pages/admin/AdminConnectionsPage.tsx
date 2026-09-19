@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/Button';
 import { useApi } from '@/lib/ApiProvider';
 
 interface ConnectionForm {
+  databaseType: 'postgresql' | 'mssql';
   host: string;
   port: number;
   database: string;
@@ -13,14 +14,32 @@ interface ConnectionForm {
   ssl: boolean;
 }
 
-const empty: ConnectionForm = { host: '', port: 5432, database: '', username: '', password: '', ssl: true };
+const postgresConnection: ConnectionForm = {
+  databaseType: 'postgresql',
+  host: '',
+  port: 5432,
+  database: '',
+  username: '',
+  password: '',
+  ssl: true,
+};
+
+const primeMssqlConnection: ConnectionForm = {
+  databaseType: 'mssql',
+  host: 'localhost',
+  port: 1433,
+  database: 'prime',
+  username: 'sa',
+  password: '',
+  ssl: true,
+};
 
 // Global Administrator: configure each product's dedicated database connection.
 export function AdminConnectionsPage() {
   const api = useApi();
   const [products, setProducts] = useState<Product[]>([]);
   const [selected, setSelected] = useState<string>('');
-  const [form, setForm] = useState<ConnectionForm>(empty);
+  const [form, setForm] = useState<ConnectionForm>(postgresConnection);
   const [status, setStatus] = useState<string>('');
 
   useEffect(() => {
@@ -33,11 +52,13 @@ export function AdminConnectionsPage() {
   useEffect(() => {
     if (!selected) return;
     setStatus('');
+    const product = products.find((candidate) => candidate.id === selected);
+    const defaults = product?.code.toUpperCase() === 'PRIME' ? primeMssqlConnection : postgresConnection;
     api
       .get<Partial<ConnectionForm> | null>(`/products/${selected}/connection`)
-      .then((c) => setForm({ ...empty, ...(c ?? {}), password: '' }))
-      .catch(() => setForm(empty));
-  }, [api, selected]);
+      .then((connection) => setForm({ ...defaults, ...(connection ?? {}), password: '' }))
+      .catch(() => setForm(defaults));
+  }, [api, products, selected]);
 
   const save = async () => {
     setStatus('Saving…');
@@ -69,7 +90,22 @@ export function AdminConnectionsPage() {
           </select>
         </label>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <label className="block text-sm">
+            <span className="text-slate-600">Database type</span>
+            <select
+              className={field}
+              value={form.databaseType}
+              onChange={(e) => {
+                const databaseType = e.target.value as ConnectionForm['databaseType'];
+                const defaults = databaseType === 'mssql' ? primeMssqlConnection : postgresConnection;
+                setForm({ ...defaults, databaseType });
+              }}
+            >
+              <option value="postgresql">PostgreSQL</option>
+              <option value="mssql">Microsoft SQL Server</option>
+            </select>
+          </label>
           <label className="block text-sm">
             <span className="text-slate-600">Host</span>
             <input className={field} value={form.host} onChange={(e) => setForm({ ...form, host: e.target.value })} />
@@ -103,6 +139,7 @@ export function AdminConnectionsPage() {
             <span className="text-slate-600">Password</span>
             <input
               type="password"
+              autoComplete="new-password"
               placeholder="••••••••"
               className={field}
               value={form.password}
@@ -115,7 +152,7 @@ export function AdminConnectionsPage() {
               checked={form.ssl}
               onChange={(e) => setForm({ ...form, ssl: e.target.checked })}
             />
-            Require SSL
+            {form.databaseType === 'mssql' ? 'Encrypt connection' : 'Require SSL'}
           </label>
         </div>
 

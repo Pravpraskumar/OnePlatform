@@ -286,6 +286,37 @@
 			"isBackground": false,
 			"problemMatcher": [],
 			"group": "test"
+		},
+		{
+			"label": "Test PRIME MSSQL connection",
+			"type": "shell",
+			"command": "C:\\Program Files\\nodejs\\npx.cmd",
+			"args": [
+				"playwright",
+				"test",
+				"admin-connections.spec.ts",
+				"--output=test-results\\admin-connections"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "Validate PRIME MSSQL Docker config",
+			"type": "shell",
+			"command": "docker",
+			"args": [
+				"compose",
+				"-f",
+				"infra\\docker-compose.yml",
+				"--profile",
+				"mssql",
+				"config",
+				"--services"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
 		}
 	]
 }
