@@ -2,7 +2,7 @@ import { FormEvent, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMsal } from '@azure/msal-react';
 import { useTranslation } from 'react-i18next';
-import { ArrowUpRight, LockKeyhole } from 'lucide-react';
+import { ArrowUpRight, Cloud, LockKeyhole } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { useSession } from '@/state/SessionProvider';
 import { loginRequest } from '@/auth/msalConfig';

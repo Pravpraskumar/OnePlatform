@@ -16,12 +16,11 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
-    "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"],
-      "@platform/shared": ["../../packages/shared/src"]
+      "@/*": ["./src/*"],
+      "@platform/shared": ["./../../packages/shared/src"]
     },
-    "ignoreDeprecations": "6.0"
+    "ignoreDeprecations": "5.0"
   },
   "include": ["src"]
 }
