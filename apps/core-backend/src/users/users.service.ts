@@ -24,14 +24,14 @@ export class UsersService {
   ) {}
 
   // Assigns a user to the configured default organisation (falling back to
-  // Global) and the General User role. Called for every new signup.
+  // McDermott IT) and the General User role. Called for every new signup.
   async ensureDefaultMembership(userId: string): Promise<void> {
     let orgId = await this.settings.getDefaultOrgId();
     if (!orgId) {
       const [globalOrg] = await this.db
         .select()
         .from(organisations)
-        .where(eq(organisations.slug, 'global'));
+        .where(eq(organisations.slug, 'mcdermott-it'));
       orgId = globalOrg?.id ?? null;
     }
     if (orgId) {
@@ -99,6 +99,7 @@ export class UsersService {
           createdAt: users.createdAt,
           updatedAt: users.updatedAt,
         });
+      await this.ensureDefaultMembership(created.id);
       return { ...created, hasPassword: true, isB2c: false, lastSignedInAt: null, globalRoles: [], roleAssignments: [], organisations: [] };
     } catch (error) {
       if ((error as { code?: string }).code === '23505') {

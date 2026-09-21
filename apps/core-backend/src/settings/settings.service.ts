@@ -45,13 +45,13 @@ export class SettingsService {
 
     let [row] = await this.db.select().from(appSettings).limit(1);
     if (!row) {
-      const [globalOrg] = await this.db
+      const [defaultOrg] = await this.db
         .select()
         .from(organisations)
-        .where(eq(organisations.slug, 'global'));
+        .where(eq(organisations.slug, 'mcdermott-it'));
       [row] = await this.db
         .insert(appSettings)
-        .values({ defaultOrgId: globalOrg?.id ?? null })
+        .values({ defaultOrgId: defaultOrg?.id ?? null })
         .returning();
     }
     this.cache = { value: row, ts: Date.now() };

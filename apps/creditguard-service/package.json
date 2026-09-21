@@ -10,7 +10,8 @@
     "start:prod": "node dist/main.js",
     "test:pcg-form": "tsx --test test/pcg-request-form.spec.ts",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "tsx src/db/migrate.ts"
+    "db:migrate": "tsx src/db/migrate.ts",
+    "db:reset": "tsx src/db/reset.ts"
   },
   "dependencies": {
     "@azure/identity": "4.11.1",

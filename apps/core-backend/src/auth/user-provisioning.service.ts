@@ -60,7 +60,7 @@ export class UserProvisioningService {
         .insert(users)
         .values({ b2cOid: oid, email, displayName, status: 'active' })
         .returning();
-      // New B2C signups default into the Global organisation.
+      // New B2C signups default into McDermott IT.
       await this.usersService.ensureDefaultMembership(user.id);
     }
 

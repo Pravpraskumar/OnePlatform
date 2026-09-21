@@ -109,7 +109,7 @@ export function AppSidebar({ collapsed }: Props) {
         .map((node) => ({ ...node, children: hideOrganisationAdminMenus(node.children) }));
     visibleMenus = hideOrganisationAdminMenus(visibleMenus);
   }
-  if (selectedOrg && selectedOrg.slug !== 'global') {
+  if (selectedOrg && selectedOrg.slug !== 'mcdermott-it') {
     const globalOnlyRoutes = ['/admin/users', '/admin/user-assignments', '/admin/user-settings', '/admin/projects', '/admin/settings'];
     const hideGlobalMenus = (nodes: MenuNode[]): MenuNode[] =>
       nodes
@@ -121,7 +121,7 @@ export function AppSidebar({ collapsed }: Props) {
   useEffect(() => {
     if (!selectedOrg) return;
     if (
-      selectedOrg.slug !== 'global' &&
+      selectedOrg.slug !== 'mcdermott-it' &&
       ['/admin/users', '/admin/user-assignments', '/admin/user-settings', '/admin/projects', '/admin/settings'].includes(location.pathname)
     ) {
       navigate('/org/members', { replace: true });

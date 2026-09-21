@@ -66,13 +66,8 @@ For a visual overview of the technology stack, service boundaries, data ownershi
 5. Generate/apply the required Drizzle migrations, then seed the core database:
 
    ```bash
-   npm run db:generate --workspace @platform/core-backend
-   npm run db:migrate --workspace @platform/core-backend
-   npm run db:generate --workspace @platform/creditguard-service
-   npm run db:migrate --workspace @platform/creditguard-service
-   npm run db:generate --workspace @platform/prime-service
-   npm run db:migrate --workspace @platform/prime-service
-   npm run db:core:seed
+   npm run db:generate:all
+   npm run db:setup
    ```
 
 6. Start all applications:
@@ -95,6 +90,8 @@ The seed defaults to `admin@global.local` / `ChangeMe123!`. Change that password
 
 The SPA supports Azure AD B2C and local email/password authentication. Local sessions use a JWT in `localStorage`; B2C sessions use MSAL. API requests prefer the local token, then fall back to an MSAL token.
 
+Optional OIDC login is configured in `apps/core-backend/.env` with `OIDC_WELL_KNOWN`, `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, and `OIDC_PROVIDER_LABEL`. Register `http://localhost:4000/api/auth/oidc/callback` with the provider for local development. `OIDC_SKIP_VERIFY=true` is development-only and skips ID-token signature checks; it is ignored when `NODE_ENV=production`.
+
 The selected organisation is persisted in `localStorage`. Core data is scoped by organisation membership, while product data is isolated in each product database. Product access also opens a licensed session; a heartbeat keeps the concurrent-seat lease active.
 
 ## Common commands
@@ -107,7 +104,11 @@ The selected organisation is persisted in `localStorage`. Core data is scoped by
 | `npm run build` | Build/type-check all workspaces |
 | `npm run lint` | Lint workspaces that define a lint script |
 | `npm run db:core:migrate` | Apply core database migrations |
-| `npm run db:core:seed` | Seed roles, admin, global organisation, products, menus, and settings |
+| `npm run db:core:seed` | Converge core data to McDermott IT, assign all modules and users, and seed roles, menus, and settings |
+| `npm run db:generate:all` | Generate Drizzle migrations for every database workspace |
+| `npm run db:migrate:all` | Apply pending migrations to core, CreditGuard, and PRIME databases |
+| `npm run db:setup` | Apply all migrations and seed the core database |
+| `npm run db:reset` | Destructively reset all three database schemas, migrate, and seed; requires `DB_RESET_CONFIRM=YES` |
 | `npm run test:e2e` | Run all mocked Playwright flows |
 | `npm run test:e2e:ui` | Open Playwright UI mode |
 

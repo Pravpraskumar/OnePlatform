@@ -18,6 +18,13 @@
     "dev:frontend": "npm run dev --workspace @platform/frontend",
     "db:core:migrate": "npm run db:migrate --workspace @platform/core-backend",
     "db:core:seed": "npm run db:seed --workspace @platform/core-backend",
+    "db:generate:all": "npm run db:generate --workspaces --if-present",
+    "db:migrate:all": "npm run db:migrate --workspaces --if-present",
+    "db:setup": "npm run db:migrate:all && npm run db:core:seed",
+    "db:reset:core": "npm run db:reset --workspace @platform/core-backend",
+    "db:reset:creditguard": "npm run db:reset --workspace @platform/creditguard-service",
+    "db:reset:prime": "npm run db:reset --workspace @platform/prime-service",
+    "db:reset": "npm run db:reset:core && npm run db:reset:creditguard && npm run db:reset:prime && npm run db:migrate:all && npm run db:core:seed",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui"
   },

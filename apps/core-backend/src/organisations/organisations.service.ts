@@ -100,12 +100,12 @@ export class OrganisationsService {
     return updated;
   }
 
-  // Deactivate/reactivate an organisation (the Global org cannot be suspended).
+  // Deactivate/reactivate an organisation (the canonical McDermott IT org cannot be suspended).
   async setStatus(id: string, status: EntityStatus) {
     const [existing] = await this.db.select().from(organisations).where(eq(organisations.id, id));
     if (!existing) throw new NotFoundException('Organisation not found');
     if (existing.slug === 'global' && status !== 'active') {
-      throw new ConflictException('The Global organisation cannot be deactivated');
+      throw new ConflictException('The McDermott IT organisation cannot be deactivated');
     }
     const [updated] = await this.db
       .update(organisations)

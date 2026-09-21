@@ -9,12 +9,12 @@ import type { CreateProjectDto, ProjectStatus, UpdateProjectDto } from './dto/pr
 export class ProjectsService {
   constructor(@Inject(CORE_DB) private readonly db: CoreDb) {}
 
-  private async globalOrganisationId() {
+  private async defaultOrganisationId() {
     const [organisation] = await this.db
       .select({ id: organisations.id })
       .from(organisations)
-      .where(eq(organisations.slug, 'global'));
-    if (!organisation) throw new NotFoundException('Global organisation not found');
+      .where(eq(organisations.slug, 'mcdermott-it'));
+    if (!organisation) throw new NotFoundException('McDermott IT organisation not found');
     return organisation.id;
   }
 
@@ -35,7 +35,7 @@ export class ProjectsService {
   }
 
   async list() {
-    const orgId = await this.globalOrganisationId();
+    const orgId = await this.defaultOrganisationId();
     return this.db
       .select({
         id: projects.id,
@@ -64,7 +64,7 @@ export class ProjectsService {
   }
 
   async create(input: CreateProjectDto) {
-    const orgId = await this.globalOrganisationId();
+    const orgId = await this.defaultOrganisationId();
     const code = input.code.trim().toUpperCase();
     await Promise.all([
       this.assertCodeAvailable(orgId, code),
@@ -78,7 +78,7 @@ export class ProjectsService {
   }
 
   async update(id: string, input: UpdateProjectDto) {
-    const orgId = await this.globalOrganisationId();
+    const orgId = await this.defaultOrganisationId();
     const [existing] = await this.db
       .select()
       .from(projects)

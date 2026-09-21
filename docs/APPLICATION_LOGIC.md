@@ -70,6 +70,10 @@ The signup password minimum is eight characters. Duplicate registration maps HTT
 
 Microsoft sign-in uses MSAL redirect. For API requests, the client first checks the local JWT, then calls `acquireTokenSilent`, and finally `acquireTokenPopup`. Core validates B2C tokens using issuer/JWKS configuration and performs just-in-time provisioning. If a user with the same email already exists, first B2C login links the B2C object identifier to that record.
 
+### Optional OIDC
+
+When `OIDC_WELL_KNOWN`, `OIDC_CLIENT_ID`, and `OIDC_CLIENT_SECRET` are configured, `/signin` shows a button labeled with `OIDC_PROVIDER_LABEL`. The browser starts the authorization-code flow at `/api/auth/oidc/start`; the backend validates a short-lived state cookie, exchanges the code at the provider token endpoint, validates the ID token against the discovered issuer, audience, and JWKS, provisions or links the user, and issues the existing platform-local JWT. The default callback is `http://localhost:4000/api/auth/oidc/callback`, and the callback returns the JWT only in the frontend URL fragment before the SPA stores the normal local session. `OIDC_SKIP_VERIFY=true` is limited to non-production environments and skips ID-token signature validation; it must not be enabled for production authentication.
+
 ### API failure behavior
 
 An authenticated core request receiving HTTP 401 emits a session-expired event once. Other authenticated failures emit a generic system error notification and throw `API <status>: <body>` to the caller.
@@ -86,7 +90,7 @@ Core role names seeded by default:
 
 CreditGuard roles are module-specific: they reference the CreditGuard product and are assigned once per user rather than per organisation. Both roles can open the workspace, product overview, and Requests only when the selected organisation has an active CreditGuard module assignment. Requestors can create and manage requests. Reviewers can review requests and open Reports. Application Setup remains limited to global and organisation administrators. Screen grants are navigation controls; guarded CreditGuard workflow endpoints introspect the bearer token through core and verify organisation membership because hiding navigation is not authorization.
 
-Global role assignments have no organisation ID. Organisation authority is also represented by membership: `Owner`, `Admin`, or `Member`.
+Global role assignments have no organisation ID. Organisation authority is also represented by membership: `Owner`, `Admin`, or `Member`. The default seeded tenant is **McDermott IT**; the core seed converges the database to that single organisation, assigns every product module to it, and places all existing users in it. New local and B2C-provisioned users, as well as users created through global administration, receive an active McDermott IT membership by default.
 
 The sidebar is data-driven from `GET /api/menus/mine?orgId=...`. Menu trees contain route, icon, display order, product link, and optional `readonly`/`editable` access. Product-linked menus are returned only when the selected organisation has an active module assignment within its validity window. The frontend hides organisation-administration routes from ordinary members and global-only routes outside the global organisation. Backend guards remain the security boundary; hiding navigation is not authorization.
 

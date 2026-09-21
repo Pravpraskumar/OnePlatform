@@ -75,7 +75,7 @@ export function AdminOrganisationsPage() {
       await api.patch(`/organisations/${id}/status`, { status });
       load();
     } catch (err) {
-      setError((err as Error).message.includes('409') ? 'The Global organisation cannot be deactivated.' : 'Update failed.');
+      setError((err as Error).message.includes('409') ? 'The McDermott IT organisation cannot be deactivated.' : 'Update failed.');
     }
   };
 
@@ -207,7 +207,7 @@ export function AdminOrganisationsPage() {
                           {o.status === 'active' ? (
                             <Button
                               variant="secondary"
-                              disabled={o.slug === 'global'}
+                              disabled={o.slug === 'mcdermott-it'}
                               onClick={() => setStatus(o.id, 'suspended')}
                             >
                               Deactivate

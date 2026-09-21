@@ -1,11 +1,12 @@
 import 'dotenv/config';
-import { and, eq, inArray, isNull } from 'drizzle-orm';
+import { and, eq, inArray, isNull, ne } from 'drizzle-orm';
 import { createDb, createPool } from './index';
 import { hashPassword } from '../common/password';
 import {
   appSettings,
   menus,
   organisations,
+  organisationModules,
   organisationUsers,
   products,
   roles,
@@ -14,7 +15,7 @@ import {
   users,
 } from './schema';
 
-// Idempotent seed: default Global org, Admin owner, base roles, products, public menus.
+// Idempotent seed: canonical organisation, default memberships/modules, base roles, products, public menus.
 async function main() {
   const url = process.env.CORE_DATABASE_URL;
   if (!url) throw new Error('CORE_DATABASE_URL is not set');
@@ -61,13 +62,41 @@ async function main() {
       .returning();
   }
 
-  // --- Global organisation ---
-  let [globalOrg] = await db.select().from(organisations).where(eq(organisations.slug, 'global'));
+  // --- Canonical organisation ---
+  let [globalOrg] = await db.select().from(organisations).where(eq(organisations.slug, 'mcdermott-it'));
+  if (!globalOrg) {
+    [globalOrg] = await db.select().from(organisations).where(eq(organisations.slug, 'global'));
+  }
   if (!globalOrg) {
     [globalOrg] = await db
       .insert(organisations)
-      .values({ name: 'Global Organisation', slug: 'global', status: 'active', ownerUserId: admin.id })
+      .values({ name: 'McDermott IT', slug: 'mcdermott-it', status: 'active', ownerUserId: admin.id })
       .returning();
+  } else {
+    [globalOrg] = await db
+      .update(organisations)
+      .set({ name: 'McDermott IT', slug: 'mcdermott-it', status: 'active', ownerUserId: admin.id })
+      .where(eq(organisations.id, globalOrg.id))
+      .returning();
+  }
+
+  // Intentional convergence: the seeded platform has one tenant.
+  await db.delete(organisations).where(ne(organisations.id, globalOrg.id));
+
+  const allUsers = await db.select({ id: users.id }).from(users);
+  for (const user of allUsers) {
+    await db
+      .insert(organisationUsers)
+      .values({
+        orgId: globalOrg.id,
+        userId: user.id,
+        membership: user.id === admin.id ? 'Owner' : 'Member',
+        status: 'active',
+      })
+      .onConflictDoUpdate({
+        target: [organisationUsers.orgId, organisationUsers.userId],
+        set: { membership: user.id === admin.id ? 'Owner' : 'Member', status: 'active', updatedAt: new Date() },
+      });
   }
 
   // --- Admin is Owner of Global + Global Administrator role ---
@@ -92,6 +121,28 @@ async function main() {
   ];
   for (const p of productDefs) {
     await db.insert(products).values(p).onConflictDoNothing({ target: products.code });
+  }
+  const allProducts = await db.select({ id: products.id }).from(products);
+  const defaultLicensedSeats = Math.max(allUsers.length, 1);
+  for (const product of allProducts) {
+    const [existingModule] = await db
+      .select({ id: organisationModules.id, licensedSeats: organisationModules.licensedSeats })
+      .from(organisationModules)
+      .where(and(eq(organisationModules.orgId, globalOrg.id), eq(organisationModules.productId, product.id)));
+    if (existingModule) {
+      await db
+        .update(organisationModules)
+        .set({ status: 'active', licensedSeats: Math.max(existingModule.licensedSeats, defaultLicensedSeats), validTo: null })
+        .where(eq(organisationModules.id, existingModule.id));
+    } else {
+      await db.insert(organisationModules).values({
+        orgId: globalOrg.id,
+        productId: product.id,
+        licensedSeats: defaultLicensedSeats,
+        status: 'active',
+        validTo: null,
+      });
+    }
   }
   const [creditGuardProduct] = await db.select().from(products).where(eq(products.code, 'CreditGuard'));
   if (creditGuardProduct) {
@@ -344,10 +395,15 @@ async function main() {
       );
   }
 
-  // --- Application settings (single row, default org = Global) ---
+  // --- Application settings (single row, default org = McDermott IT) ---
   const existingSettings = await db.select().from(appSettings).limit(1);
   if (existingSettings.length === 0) {
     await db.insert(appSettings).values({ defaultOrgId: globalOrg.id });
+  } else {
+    await db
+      .update(appSettings)
+      .set({ defaultOrgId: globalOrg.id, updatedAt: new Date() })
+      .where(eq(appSettings.id, existingSettings[0].id));
   }
 
   console.log('Seed complete.');

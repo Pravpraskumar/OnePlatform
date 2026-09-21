@@ -34,7 +34,7 @@ export class LocalAuthService {
       .values({ email, displayName: input.displayName, passwordHash, status: 'active' })
       .returning();
 
-    // New signups default into the Global organisation with the General User role.
+    // New signups default into McDermott IT with the General User role.
     await this.usersService.ensureDefaultMembership(user.id);
 
     return this.issue(user.id);
@@ -50,6 +50,10 @@ export class LocalAuthService {
     if (!ok) throw new UnauthorizedException('Invalid email or password');
 
     return this.issue(user.id);
+  }
+
+  async issueForUser(userId: string): Promise<AuthResult> {
+    return this.issue(userId);
   }
 
   private async issue(userId: string): Promise<AuthResult> {
