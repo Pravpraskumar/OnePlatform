@@ -8,8 +8,9 @@ async function bootstrap() {
   app.setGlobalPrefix('api');
   app.enableCors({ origin: config.get<string>('CORS_ORIGIN')?.split(',') ?? true });
   const port = Number(config.get('PORT') ?? 4101);
-  await app.listen(port);
-  console.log(`creditguard-service listening on http://localhost:${port}/api`);
+  const host = config.get<string>('HOST') ?? '0.0.0.0';
+  await app.listen(port, host);
+  console.log(`creditguard-service listening on http://${host}:${port}/api`);
 }
 
 bootstrap();

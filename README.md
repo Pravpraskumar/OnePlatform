@@ -101,6 +101,9 @@ The selected organisation is persisted in `localStorage`. Core data is scoped by
 | `npm run dev` | Start all services and the frontend |
 | `npm run dev:frontend` | Start only Vite |
 | `npm run dev:core` | Start only the core API |
+| `VITE_HOST=0.0.0.0` | Bind frontend development and production preview to all interfaces for IP/LAN access |
+| `VITE_CORE_API_URL=http://<server-ip>:4000` | Configure the frontend core API proxy target |
+| `VITE_CREDITGUARD_API_URL=http://<server-ip>:4101` | Configure the frontend CreditGuard proxy target |
 | `npm run start:prod` | Start the built core API, CreditGuard, PRIME, and frontend in production mode |
 | `npm run start:prod:core` | Start only the built core API in production mode |
 | `npm run start:prod:creditguard` | Start only the built CreditGuard API in production mode |
