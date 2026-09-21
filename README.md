@@ -101,8 +101,13 @@ The selected organisation is persisted in `localStorage`. Core data is scoped by
 | `npm run dev` | Start all services and the frontend |
 | `npm run dev:frontend` | Start only Vite |
 | `npm run dev:core` | Start only the core API |
-| `npm run build` | Build/type-check all workspaces |
-| `npm run lint` | Lint workspaces that define a lint script |
+| `npm run start:prod` | Start the built core API, CreditGuard, PRIME, and frontend in production mode |
+| `npm run start:prod:core` | Start only the built core API in production mode |
+| `npm run start:prod:creditguard` | Start only the built CreditGuard API in production mode |
+| `npm run start:prod:prime` | Start only the built PRIME API in production mode |
+| `npm run start:prod:frontend` | Serve the built frontend with Vite preview |
+| `npm run build` | Build/type-check all workspaces through Turborepo with dependency ordering and caching |
+| `npm run lint` | Lint workspaces that define a lint script through Turborepo |
 | `npm run db:core:migrate` | Apply core database migrations |
 | `npm run db:core:seed` | Converge core data to McDermott IT, assign all modules and users, and seed roles, menus, and settings |
 | `npm run db:generate:all` | Generate Drizzle migrations for every database workspace |
