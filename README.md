@@ -30,14 +30,13 @@ For a visual overview of the technology stack, service boundaries, data ownershi
    npm install
    ```
 
-2. Copy each example environment file:
+2. Create the single root environment file:
 
    ```powershell
-   Copy-Item apps\core-backend\.env.example apps\core-backend\.env
-   Copy-Item apps\creditguard-service\.env.example apps\creditguard-service\.env
-   Copy-Item apps\prime-service\.env.example apps\prime-service\.env
-   Copy-Item apps\frontend\.env.example apps\frontend\.env
+   Copy-Item .env.example .env
    ```
+
+   The frontend, all services, and database scripts read their application settings from this root `.env`. The optional `infra/.env` described below remains separate because it is consumed by Docker Compose.
 
 3. Replace the example secrets. In particular, set a strong `LOCAL_JWT_SECRET` and a base64-encoded 32-byte `CONNECTION_SECRET_KEY`.
 
@@ -90,7 +89,7 @@ The seed defaults to `admin@global.local` / `ChangeMe123!`. Change that password
 
 The SPA supports Azure AD B2C and local email/password authentication. Local sessions use a JWT in `localStorage`; B2C sessions use MSAL. API requests prefer the local token, then fall back to an MSAL token.
 
-Optional OIDC login is configured in `apps/core-backend/.env` with `OIDC_WELL_KNOWN`, `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, and `OIDC_PROVIDER_LABEL`. Register `http://localhost:4000/api/auth/oidc/callback` with the provider for local development. `OIDC_SKIP_VERIFY=true` is development-only and skips ID-token signature checks; it is ignored when `NODE_ENV=production`.
+Optional OIDC login is configured in the root `.env` with `OIDC_WELL_KNOWN`, `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, and `OIDC_PROVIDER_LABEL`. Register `http://localhost:4000/api/auth/oidc/callback` with the provider for local development. `OIDC_SKIP_VERIFY=true` is development-only and skips ID-token signature checks; it is ignored when `NODE_ENV=production`.
 
 The selected organisation is persisted in `localStorage`. Core data is scoped by organisation membership, while product data is isolated in each product database. Product access also opens a licensed session; a heartbeat keeps the concurrent-seat lease active.
 
@@ -104,6 +103,10 @@ The selected organisation is persisted in `localStorage`. Core data is scoped by
 | `VITE_HOST=0.0.0.0` | Bind frontend development and production preview to all interfaces for IP/LAN access |
 | `VITE_CORE_API_URL=http://<server-ip>:4000` | Configure the frontend core API proxy target |
 | `VITE_CREDITGUARD_API_URL=http://<server-ip>:4101` | Configure the frontend CreditGuard proxy target |
+| `VITE_API_BASE=http://<server-ip>:4000/api` | Use the absolute core API URL when serving the production frontend directly |
+| `VITE_CREDITGUARD_API_BASE=http://<server-ip>:4101/api` | Use the absolute CreditGuard API URL when serving the production frontend directly |
+
+When opening the frontend with an IP address, add the matching origin to `CORS_ORIGIN` in the backend `.env` files, for example `http://192.168.1.25:5173`. Rebuild the frontend after changing `VITE_API_BASE` or `VITE_CREDITGUARD_API_BASE`, because Vite embeds these values into the static bundle.
 | `npm run start:prod` | Start the built core API, CreditGuard, PRIME, and frontend in production mode |
 | `npm run start:prod:core` | Start only the built core API in production mode |
 | `npm run start:prod:creditguard` | Start only the built CreditGuard API in production mode |

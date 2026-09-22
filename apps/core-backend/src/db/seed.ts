@@ -1,4 +1,5 @@
-import 'dotenv/config';
+import { config } from 'dotenv';
+import { resolve } from 'node:path';
 import { and, eq, inArray, isNull, ne } from 'drizzle-orm';
 import { createDb, createPool } from './index';
 import { hashPassword } from '../common/password';
@@ -14,6 +15,8 @@ import {
   userRoles,
   users,
 } from './schema';
+
+config({ path: resolve(__dirname, '../../../../.env') });
 
 // Idempotent seed: canonical organisation, default memberships/modules, base roles, products, public menus.
 async function main() {

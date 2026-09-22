@@ -1,6 +1,9 @@
-import 'dotenv/config';
+import { config } from 'dotenv';
+import { resolve } from 'node:path';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { createDb, createPool } from './index';
+
+config({ path: resolve(__dirname, '../../../../.env') });
 
 async function main() {
   const url = process.env.CORE_DATABASE_URL;

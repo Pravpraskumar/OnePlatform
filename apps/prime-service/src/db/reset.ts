@@ -1,5 +1,8 @@
-import 'dotenv/config';
+import { config } from 'dotenv';
+import { resolve } from 'node:path';
 import { Client } from 'pg';
+
+config({ path: resolve(__dirname, '../../../../.env') });
 
 async function main() {
   if (process.env.DB_RESET_CONFIRM !== 'YES') {

@@ -4,7 +4,7 @@ import { getLocalToken } from '@/state/localSession';
 import { notify, notifySessionExpired } from './systemEvents';
 
 const API_BASE = (import.meta.env.VITE_API_BASE as string) ?? '/api';
-const CREDITGUARD_API_BASE = '/creditguard-api';
+const CREDITGUARD_API_BASE = (import.meta.env.VITE_CREDITGUARD_API_BASE as string) ?? '/creditguard-api';
 let sessionExpiryReported = false;
 
 // Prefers a platform-local session token, falling back to Azure AD B2C.

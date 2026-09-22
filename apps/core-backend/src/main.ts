@@ -14,7 +14,7 @@ async function bootstrap() {
     credentials: true,
   });
 
-  const port = Number(config.get('PORT') ?? 4000);
+  const port = Number(config.get('CORE_PORT') ?? config.get('PORT') ?? 4000);
   const host = config.get<string>('HOST') ?? '0.0.0.0';
   await app.listen(port, host);
   console.log(`platform-core-backend listening on http://${host}:${port}/api`);
