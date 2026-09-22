@@ -18,6 +18,10 @@ export function getLocalUser(): AuthUser | null {
   }
 }
 
+export function setLocalToken(token: string) {
+  localStorage.setItem(TOKEN_KEY, token);
+}
+
 export function setLocalSession(token: string, user: AuthUser) {
   localStorage.setItem(TOKEN_KEY, token);
   localStorage.setItem(USER_KEY, JSON.stringify(user));

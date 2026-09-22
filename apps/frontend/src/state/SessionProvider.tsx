@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, ReactNode } from 'react';
 import type { AuthUser } from '@platform/shared';
 import { useApi } from '@/lib/ApiProvider';
-import { clearLocalSession, getLocalToken, getLocalUser, setLocalSession, setLocalUser } from './localSession';
+import { clearLocalSession, getLocalToken, getLocalUser, setLocalSession, setLocalToken, setLocalUser } from './localSession';
 import { notifySessionExpired } from '@/lib/systemEvents';
 
 interface AuthResult {
@@ -14,6 +14,7 @@ interface SessionContextValue {
   isLocalAuthenticated: boolean;
   register: (input: { email: string; password: string; displayName: string }) => Promise<void>;
   login: (input: { email: string; password: string }) => Promise<void>;
+  completeExternalLogin: (accessToken: string) => Promise<void>;
   logout: () => void;
   updateUser: (input: Pick<AuthUser, 'displayName' | 'email'>) => void;
 }
@@ -61,6 +62,16 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     [api, apply],
   );
 
+  const completeExternalLogin = useCallback(async (accessToken: string) => {
+    setLocalToken(accessToken);
+    try {
+      apply({ accessToken, user: await api.get<AuthUser>('/auth/me') });
+    } catch (error) {
+      clearLocalSession();
+      throw error;
+    }
+  }, [api, apply]);
+
   const logout = useCallback(() => {
     clearLocalSession();
     setUser(null);
@@ -76,8 +87,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo<SessionContextValue>(
-    () => ({ user, isLocalAuthenticated: !!getLocalToken(), register, login, logout, updateUser }),
-    [user, register, login, logout, updateUser],
+    () => ({ user, isLocalAuthenticated: !!getLocalToken(), register, login, completeExternalLogin, logout, updateUser }),
+    [user, register, login, completeExternalLogin, logout, updateUser],
   );
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;

@@ -5,6 +5,10 @@ import { fileURLToPath, URL } from 'node:url';
 export default defineConfig(({ mode }) => {
   const envDir = fileURLToPath(new URL('../../', import.meta.url));
   const env = loadEnv(mode, envDir, '');
+  const allowedHosts = env.VITE_ALLOWED_HOSTS
+    ?.split(',')
+    .map((host) => host.trim())
+    .filter(Boolean);
 
   return {
     envDir,
@@ -18,6 +22,7 @@ export default defineConfig(({ mode }) => {
     server: {
       host: env.VITE_HOST || env.VITE_DEV_HOST || 'localhost',
       port: Number(env.VITE_PORT || env.VITE_DEV_PORT || 5173),
+      allowedHosts,
       proxy: {
         '/api': env.VITE_CORE_API_URL || 'http://localhost:4000',
         '/creditguard-api': {
@@ -29,6 +34,7 @@ export default defineConfig(({ mode }) => {
     preview: {
       host: env.VITE_HOST || env.VITE_DEV_HOST || 'localhost',
       port: Number(env.VITE_PORT || env.VITE_DEV_PORT || 4173),
+      allowedHosts,
     },
   };
 });

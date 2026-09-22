@@ -1,4 +1,4 @@
-import { FormEvent, useState } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMsal } from '@azure/msal-react';
 import { useTranslation } from 'react-i18next';
@@ -6,12 +6,20 @@ import { ArrowUpRight, Cloud, LockKeyhole } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { useSession } from '@/state/SessionProvider';
 import { isMsalAvailable, loginRequest } from '@/auth/msalConfig';
+import { coreApiUrl } from '@/lib/apiClient';
+import { useApi } from '@/lib/ApiProvider';
 
 const REMEMBERED_EMAIL_KEY = 'rememberedEmail';
 
+interface OidcConfig {
+  enabled: boolean;
+  providerLabel: string;
+}
+
 export function SignInPage() {
   const { t } = useTranslation();
-  const { login } = useSession();
+  const api = useApi();
+  const { completeExternalLogin, login } = useSession();
   const { instance } = useMsal();
   const navigate = useNavigate();
   const [email, setEmail] = useState(() => localStorage.getItem(REMEMBERED_EMAIL_KEY) ?? '');
@@ -19,6 +27,32 @@ export function SignInPage() {
   const [rememberMe, setRememberMe] = useState(() => !!localStorage.getItem(REMEMBERED_EMAIL_KEY));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [oidcConfig, setOidcConfig] = useState<OidcConfig | null>(null);
+
+  useEffect(() => {
+    void api.get<OidcConfig>('/auth/oidc/config')
+      .then(setOidcConfig)
+      .catch(() => setOidcConfig(null));
+  }, [api]);
+
+  useEffect(() => {
+    const fragment = new URLSearchParams(window.location.hash.slice(1));
+    const accessToken = fragment.get('oidc_token');
+    const oidcError = fragment.get('oidc_error');
+    if (!accessToken && !oidcError) return;
+
+    window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}`);
+    if (oidcError) {
+      setError('Authentication failed. Please try again.');
+      return;
+    }
+
+    setBusy(true);
+    void completeExternalLogin(accessToken!)
+      .then(() => navigate('/app/dashboard'))
+      .catch(() => setError('Authentication failed. Please try again.'))
+      .finally(() => setBusy(false));
+  }, [completeExternalLogin, navigate]);
 
   const handleLocalLogin = async (event: FormEvent) => {
     event.preventDefault();
@@ -167,6 +201,19 @@ export function SignInPage() {
                     {busy ? 'Signing in…' : 'McDermott SSO'}
                   </Button>
                 </>
+              )}
+
+              {oidcConfig?.enabled && (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="h-12 w-full rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                  onClick={() => window.location.assign(coreApiUrl('/auth/oidc/start'))}
+                  disabled={busy}
+                >
+                  <Cloud size={18} className="text-[#0e7490]" />
+                  {busy ? 'Signing in…' : oidcConfig.providerLabel}
+                </Button>
               )}
             </fieldset>
           </form>

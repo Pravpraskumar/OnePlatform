@@ -43,6 +43,25 @@ test('invalid credentials remain on sign in and show an error', async ({ page })
   await expect(page).toHaveURL(/\/signin$/);
 });
 
+test('configured OIDC provider is available on sign in', async ({ page }) => {
+  await page.route('**/api/auth/oidc/config', (route) =>
+    route.fulfill({ contentType: 'application/json', body: JSON.stringify({ enabled: true, providerLabel: 'Corporate OIDC' }) }),
+  );
+  await page.goto('/signin');
+  await expect(page.getByRole('button', { name: 'Corporate OIDC' })).toBeVisible();
+});
+
+test('OIDC callback token creates a local session', async ({ page }) => {
+  await mockApp(page);
+  await page.route('**/api/auth/me', (route) =>
+    route.fulfill({ contentType: 'application/json', body: JSON.stringify(user) }),
+  );
+  const token = 'header.eyJleHAiOjQxMDI0NDQ4MDB9.signature';
+  await page.goto(`/signin#oidc_token=${encodeURIComponent(token)}`);
+  await expect(page).toHaveURL(/\/app\/dashboard$/);
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('platformAuthToken'))).toBe(token);
+});
+
 test('local registration validates password and creates a session', async ({ page }) => {
   await mockApp(page);
   await page.route('**/api/auth/register', (route) =>

@@ -7,6 +7,10 @@ const API_BASE = (import.meta.env.VITE_API_BASE as string) ?? '/api';
 const CREDITGUARD_API_BASE = (import.meta.env.VITE_CREDITGUARD_API_BASE as string) ?? '/creditguard-api';
 let sessionExpiryReported = false;
 
+export function coreApiUrl(path: string): string {
+  return `${API_BASE}${path}`;
+}
+
 // Prefers a platform-local session token, falling back to Azure AD B2C.
 async function getToken(msal: IPublicClientApplication): Promise<string | null> {
   const local = getLocalToken();
