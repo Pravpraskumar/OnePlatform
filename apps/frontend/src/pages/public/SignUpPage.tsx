@@ -6,7 +6,7 @@ import { Boxes } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { useSession } from '@/state/SessionProvider';
-import { loginRequest } from '@/auth/msalConfig';
+import { isMsalAvailable, loginRequest } from '@/auth/msalConfig';
 
 const field = 'mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm';
 
@@ -88,19 +88,23 @@ export function SignUpPage() {
           </Button>
         </form>
 
-        <div className="my-4 flex items-center gap-3 text-xs text-slate-400">
-          <span className="h-px flex-1 bg-slate-200" />
-          OR
-          <span className="h-px flex-1 bg-slate-200" />
-        </div>
+        {isMsalAvailable && (
+          <>
+            <div className="my-4 flex items-center gap-3 text-xs text-slate-400">
+              <span className="h-px flex-1 bg-slate-200" />
+              OR
+              <span className="h-px flex-1 bg-slate-200" />
+            </div>
 
-        <Button
-          variant="secondary"
-          className="w-full"
-          onClick={() => instance.loginRedirect(loginRequest)}
-        >
-          Continue with Microsoft
-        </Button>
+            <Button
+              variant="secondary"
+              className="w-full"
+              onClick={() => instance.loginRedirect(loginRequest)}
+            >
+              Continue with Microsoft
+            </Button>
+          </>
+        )}
 
         <p className="mt-6 text-center text-sm text-slate-500">
           Already have an account?{' '}

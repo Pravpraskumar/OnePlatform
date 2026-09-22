@@ -1,9 +1,25 @@
-import { Configuration, LogLevel, PopupRequest } from '@azure/msal-browser';
+import {
+  Configuration,
+  IPublicClientApplication,
+  LogLevel,
+  Logger,
+  PopupRequest,
+  stubbedPublicClientApplication,
+} from '@azure/msal-browser';
 
 const tenant = import.meta.env.VITE_B2C_TENANT_NAME as string;
 const policy = import.meta.env.VITE_B2C_POLICY_SIGNUP_SIGNIN as string;
 const clientId = import.meta.env.VITE_B2C_CLIENT_ID as string;
 const apiScope = import.meta.env.VITE_B2C_API_SCOPE as string;
+
+export const isMsalAvailable = window.isSecureContext && !!window.crypto?.subtle;
+
+export const unavailableMsalInstance: IPublicClientApplication = {
+  ...stubbedPublicClientApplication,
+  initialize: async () => undefined,
+  handleRedirectPromise: async () => null,
+  getLogger: () => new Logger({}),
+};
 
 const authority = `https://${tenant}.b2clogin.com/${tenant}.onmicrosoft.com/${policy}`;
 

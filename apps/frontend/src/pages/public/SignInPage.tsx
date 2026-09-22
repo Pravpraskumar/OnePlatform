@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { ArrowUpRight, Cloud, LockKeyhole } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { useSession } from '@/state/SessionProvider';
-import { loginRequest } from '@/auth/msalConfig';
+import { isMsalAvailable, loginRequest } from '@/auth/msalConfig';
 
 const REMEMBERED_EMAIL_KEY = 'rememberedEmail';
 
@@ -148,22 +148,26 @@ export function SignInPage() {
                 {busy ? 'Signing in…' : 'Sign In'}
               </Button>
 
-              <div className="my-2 flex items-center gap-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">
-                <span className="h-px flex-1 bg-slate-200" />
-                Or continue with
-                <span className="h-px flex-1 bg-slate-200" />
-              </div>
+              {isMsalAvailable && (
+                <>
+                  <div className="my-2 flex items-center gap-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">
+                    <span className="h-px flex-1 bg-slate-200" />
+                    Or continue with
+                    <span className="h-px flex-1 bg-slate-200" />
+                  </div>
 
-              <Button
-                type="button"
-                variant="secondary"
-                className="h-12 w-full rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-                onClick={handleMsalLogin}
-                disabled={busy}
-              >
-                <Cloud size={18} className="text-[#0e7490]" />
-                {busy ? 'Signing in…' : 'McDermott SSO'}
-              </Button>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className="h-12 w-full rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                    onClick={handleMsalLogin}
+                    disabled={busy}
+                  >
+                    <Cloud size={18} className="text-[#0e7490]" />
+                    {busy ? 'Signing in…' : 'McDermott SSO'}
+                  </Button>
+                </>
+              )}
             </fieldset>
           </form>
         </section>
