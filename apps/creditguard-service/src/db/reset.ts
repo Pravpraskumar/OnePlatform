@@ -14,7 +14,7 @@ async function main() {
   const client = new Client({ connectionString: url });
   await client.connect();
   console.log('Resetting CreditGuard database schema...');
-  await client.query('DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public;');
+  await client.query('DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public; DROP SCHEMA IF EXISTS drizzle CASCADE;');
   await client.end();
   console.log('CreditGuard database reset complete.');
 }
