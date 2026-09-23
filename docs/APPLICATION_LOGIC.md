@@ -42,7 +42,7 @@ QueryClientProvider
 - `ApiProvider` creates the authenticated core API client.
 - `SessionProvider` owns local user state and JWT expiry.
 - `ThemeProvider` loads site banner and personal theme after authentication.
-- `OrgProvider` persists the full selected organisation object under `selectedOrgId`.
+- `OrgProvider` loads the authenticated user's active memberships from `GET /api/organisations/mine`, validates persisted context, and stores the full selected organisation object under `selectedOrgId`.
 - `RequireAuth` permits either a local token or an authenticated MSAL account.
 
 Local storage keys:
@@ -61,8 +61,9 @@ Local storage keys:
 1. `/signup` posts `{ displayName, email, password }` to `/api/auth/register`, or `/signin` posts `{ email, password }` to `/api/auth/login`.
 2. Core validates credentials and returns `{ accessToken, user }`.
 3. The SPA stores both values and navigates to `/app/dashboard`.
-4. `SessionProvider` decodes the JWT `exp` claim and schedules session-expiry notification.
-5. Logout or account deletion clears the local token and user.
+4. `OrgProvider` automatically selects an authorised organisation when exactly one membership is returned. With multiple memberships, the authenticated shell blocks tenant-scoped content until the user explicitly selects an organisation. A persisted selection is restored only when it remains in the authorised membership list.
+5. `SessionProvider` decodes the JWT `exp` claim and schedules session-expiry notification.
+6. Logout or account deletion clears the local token and user.
 
 The signup password minimum is eight characters. Duplicate registration maps HTTP 409 to a specific message. Sign-in failures use a generic invalid-credentials message.
 
@@ -72,7 +73,7 @@ Microsoft sign-in uses MSAL redirect. For API requests, the client first checks 
 
 ### Optional OIDC
 
-When `OIDC_WELL_KNOWN`, `OIDC_CLIENT_ID`, and `OIDC_CLIENT_SECRET` are configured, `/signin` shows a button labeled with `OIDC_PROVIDER_LABEL`. The browser starts the authorization-code flow at `/api/auth/oidc/start`; the backend validates a short-lived state cookie, exchanges the code at the provider token endpoint, validates the ID token against the discovered issuer, audience, and JWKS, provisions or links the user, and issues the existing platform-local JWT. The default callback is `http://localhost:4000/api/auth/oidc/callback`, and the callback returns the JWT only in the frontend URL fragment before the SPA stores the normal local session. `OIDC_SKIP_VERIFY=true` is limited to non-production environments and skips ID-token signature validation; it must not be enabled for production authentication.
+When `OIDC_WELL_KNOWN`, `OIDC_CLIENT_ID`, and `OIDC_CLIENT_SECRET` are configured, `/signin` shows a button labeled with `OIDC_PROVIDER_LABEL`. The browser starts the authorization-code flow at `/api/auth/oidc/start`; the backend validates a short-lived state cookie, exchanges the code at the provider token endpoint, validates the ID token against the discovered issuer, audience, and JWKS, provisions or links the user, and issues the existing platform-local JWT. A newly provisioned external identity receives an active `Member` membership in **McDermott IT** and the global `General User` role only; it receives no product role, team, project, module designation, or licence allocation. The default callback is `http://localhost:4000/api/auth/oidc/callback`, and the callback returns the JWT only in the frontend URL fragment before the SPA stores the normal local session. `OIDC_SKIP_VERIFY=true` is limited to non-production environments and skips ID-token signature validation; it must not be enabled for production authentication.
 
 ### API failure behavior
 
@@ -88,7 +89,7 @@ Core role names seeded by default:
 - `CreditGuard Requestor`
 - `CreditGuard Reviewer`
 
-CreditGuard roles are module-specific: they reference the CreditGuard product and are assigned once per user rather than per organisation. Both roles can open the workspace, product overview, and Requests only when the selected organisation has an active CreditGuard module assignment. Requestors can create and manage requests. Reviewers can review requests and open Reports. Application Setup remains limited to global and organisation administrators. Screen grants are navigation controls; guarded CreditGuard workflow endpoints introspect the bearer token through core and verify organisation membership because hiding navigation is not authorization.
+CreditGuard roles are module-specific: they reference the CreditGuard product and are assigned once per user rather than per organisation. Ordinary organisation Members see a product and can open its licensed session only when they have a matching product-scoped role; `General User` alone does not grant module access. Organisation Owner/Admin memberships and Global Administrator retain administrative product visibility. CreditGuard Requestor and Reviewer can open the workspace, product overview, and Requests only when the selected organisation has an active CreditGuard module assignment. Requestors can create and manage requests. Reviewers can review requests and open Reports. Application Setup remains limited to global and organisation administrators. Screen grants are navigation controls; guarded CreditGuard workflow endpoints introspect the bearer token through core and verify organisation membership because hiding navigation is not authorization.
 
 Global role assignments have no organisation ID. Organisation authority is also represented by membership: `Owner`, `Admin`, or `Member`. The default seeded tenant is **McDermott IT**; the core seed converges the database to that single organisation, assigns every product module to it, and places all existing users in it. New local and B2C-provisioned users, as well as users created through global administration, receive an active McDermott IT membership by default.
 

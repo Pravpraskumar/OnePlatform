@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { mockApp, user } from './support/app';
+import { mockApp, organisation, user } from './support/app';
 
 test('public navigation exposes marketing, about, sign in, and sign up', async ({ page }) => {
   await page.goto('/');
@@ -29,6 +29,41 @@ test('local sign in stores the session, remembers email, and opens dashboard', a
   await expect(page).toHaveURL(/\/app\/dashboard$/);
   await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
   await expect.poll(() => page.evaluate(() => localStorage.getItem('rememberedEmail'))).toBe(user.email);
+  await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('selectedOrgId') ?? 'null')?.id)).toBe('org-1');
+});
+
+test('local sign in requires an organisation choice when multiple memberships exist', async ({ page }) => {
+  await mockApp(page);
+  const secondOrganisation = {
+    id: 'org-2',
+    name: 'Project Organisation',
+    slug: 'project-organisation',
+    status: 'active',
+    membership: 'Member',
+  };
+  await page.route('**/api/organisations/mine', (route) =>
+    route.fulfill({ contentType: 'application/json', body: JSON.stringify([organisation, secondOrganisation]) }),
+  );
+  await page.route('**/api/auth/login', (route) =>
+    route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify({ accessToken: 'header.eyJleHAiOjQxMDI0NDQ4MDB9.signature', user }),
+    }),
+  );
+
+  await page.goto('/signin');
+  await page.getByLabel('Email').fill(user.email);
+  await page.getByLabel('Password').fill('CorrectHorseBatteryStaple');
+  await page.getByRole('button', { name: 'Sign In', exact: true }).click();
+
+  await expect(page).toHaveURL(/\/app\/dashboard$/);
+  await expect(page.getByRole('heading', { name: 'Select Organisation' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Dashboard' })).toHaveCount(0);
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('selectedOrgId'))).toBeNull();
+
+  await page.getByRole('button', { name: /Project Organisation/ }).click();
+  await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
+  await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('selectedOrgId') ?? 'null')?.id)).toBe('org-2');
 });
 
 test('invalid credentials remain on sign in and show an error', async ({ page }) => {

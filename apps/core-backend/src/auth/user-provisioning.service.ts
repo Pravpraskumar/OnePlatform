@@ -56,12 +56,7 @@ export class UserProvisioningService {
       }
     }
     if (!user) {
-      [user] = await this.db
-        .insert(users)
-        .values({ b2cOid: oid, email, displayName, status: 'active' })
-        .returning();
-      // New B2C signups default into McDermott IT.
-      await this.usersService.ensureDefaultMembership(user.id);
+      user = await this.usersService.createExternalUserWithBasicAccess({ b2cOid: oid, email, displayName });
     }
 
     const globalRoles = await this.db

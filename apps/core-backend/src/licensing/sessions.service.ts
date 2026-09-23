@@ -1,6 +1,6 @@
 import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { and, desc, eq, gte, isNull, sql } from 'drizzle-orm';
+import { and, desc, eq, gte, isNull, or, sql } from 'drizzle-orm';
 import { CORE_DB } from '../db/database.module';
 import type { CoreDb } from '../db';
 import {
@@ -12,7 +12,9 @@ import {
   products,
   projectModules,
   projects,
+  roles,
   sessions,
+  userRoles,
   users,
 } from '../db/schema';
 import { SettingsService } from '../settings/settings.service';
@@ -63,7 +65,7 @@ export class SessionsService {
       }
 
       const [membership] = await tx
-        .select({ userId: organisationUsers.userId })
+        .select({ membership: organisationUsers.membership })
         .from(organisationUsers)
         .where(
           and(
@@ -73,6 +75,21 @@ export class SessionsService {
           ),
         );
       if (!membership) throw new ForbiddenException('User is not an active organisation member');
+
+      if (!['Owner', 'Admin'].includes(membership.membership)) {
+        const [productAccess] = await tx
+          .select({ userId: userRoles.userId })
+          .from(userRoles)
+          .innerJoin(roles, eq(userRoles.roleId, roles.id))
+          .where(
+            and(
+              eq(userRoles.userId, params.userId),
+              or(isNull(userRoles.orgId), eq(userRoles.orgId, params.orgId)),
+              or(eq(roles.name, 'Global Administrator'), eq(roles.productId, params.productId)),
+            ),
+          );
+        if (!productAccess) throw new ForbiddenException('User is not assigned to this module');
+      }
 
       if (license.teamId) {
         const [teamMembership] = await tx

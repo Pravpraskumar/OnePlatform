@@ -34,6 +34,35 @@ export class UsersService {
         .where(eq(organisations.slug, 'mcdermott-it'));
       orgId = globalOrg?.id ?? null;
     }
+    await this.ensureBasicAccess(userId, orgId);
+  }
+
+  async createExternalUserWithBasicAccess(input: { b2cOid: string; email: string; displayName: string }) {
+    return this.db.transaction(async (tx) => {
+      const [mcDermott] = await tx
+        .select({ id: organisations.id })
+        .from(organisations)
+        .where(eq(organisations.slug, 'mcdermott-it'));
+      if (!mcDermott) throw new NotFoundException('McDermott IT organisation is not configured');
+
+      const [generalRole] = await tx.select({ id: roles.id }).from(roles).where(eq(roles.name, 'General User'));
+      if (!generalRole) throw new NotFoundException('General User role is not configured');
+
+      const [user] = await tx
+        .insert(users)
+        .values({ ...input, status: 'active' })
+        .returning();
+      await tx
+        .insert(organisationUsers)
+        .values({ orgId: mcDermott.id, userId: user.id, membership: 'Member', status: 'active' });
+      await tx
+        .insert(userRoles)
+        .values({ userId: user.id, roleId: generalRole.id, orgId: null });
+      return user;
+    });
+  }
+
+  private async ensureBasicAccess(userId: string, orgId: string | null): Promise<void> {
     if (orgId) {
       await this.db
         .insert(organisationUsers)

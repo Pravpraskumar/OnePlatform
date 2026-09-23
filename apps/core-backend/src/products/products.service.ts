@@ -2,7 +2,7 @@ import { ForbiddenException, Inject, Injectable, NotFoundException } from '@nest
 import { and, eq, exists, gt, isNull, or } from 'drizzle-orm';
 import { CORE_DB } from '../db/database.module';
 import type { CoreDb } from '../db';
-import { organisationModules, organisationTeamUsers, organisationUsers, productDbConnections, products } from '../db/schema';
+import { organisationModules, organisationTeamUsers, organisationUsers, productDbConnections, products, roles, userRoles } from '../db/schema';
 import { encryptSecret } from '../common/crypto';
 import type { AuthUser } from '../auth/auth-user.interface';
 
@@ -18,9 +18,10 @@ export class ProductsService {
       return this.db.select().from(products).where(eq(products.isActive, true));
     }
 
-    if (!user.globalRoles.includes('Global Administrator')) {
+    let canViewAllProducts = user.globalRoles.includes('Global Administrator');
+    if (!canViewAllProducts) {
       const [membership] = await this.db
-        .select({ userId: organisationUsers.userId })
+        .select({ membership: organisationUsers.membership })
         .from(organisationUsers)
         .where(
           and(
@@ -30,6 +31,45 @@ export class ProductsService {
           ),
         );
       if (!membership) throw new ForbiddenException('User is not an active organisation member');
+      canViewAllProducts = ['Owner', 'Admin'].includes(membership.membership);
+    }
+
+    const accessConditions = [
+      eq(organisationModules.orgId, orgId),
+      eq(organisationModules.status, 'active'),
+      eq(products.isActive, true),
+      or(isNull(organisationModules.validTo), gt(organisationModules.validTo, new Date())),
+      or(
+        isNull(organisationModules.teamId),
+        exists(
+          this.db
+            .select({ userId: organisationTeamUsers.userId })
+            .from(organisationTeamUsers)
+            .where(
+              and(
+                eq(organisationTeamUsers.teamId, organisationModules.teamId),
+                eq(organisationTeamUsers.userId, user.id),
+              ),
+            ),
+        ),
+      ),
+    ];
+    if (!canViewAllProducts) {
+      accessConditions.push(
+        exists(
+          this.db
+            .select({ userId: userRoles.userId })
+            .from(userRoles)
+            .innerJoin(roles, eq(userRoles.roleId, roles.id))
+            .where(
+              and(
+                eq(userRoles.userId, user.id),
+                eq(roles.productId, organisationModules.productId),
+                or(isNull(userRoles.orgId), eq(userRoles.orgId, orgId)),
+              ),
+            ),
+        ),
+      );
     }
 
     return this.db
@@ -43,28 +83,7 @@ export class ProductsService {
       })
       .from(organisationModules)
       .innerJoin(products, eq(organisationModules.productId, products.id))
-      .where(
-        and(
-          eq(organisationModules.orgId, orgId),
-          eq(organisationModules.status, 'active'),
-          eq(products.isActive, true),
-          or(isNull(organisationModules.validTo), gt(organisationModules.validTo, new Date())),
-          or(
-            isNull(organisationModules.teamId),
-            exists(
-              this.db
-                .select({ userId: organisationTeamUsers.userId })
-                .from(organisationTeamUsers)
-                .where(
-                  and(
-                    eq(organisationTeamUsers.teamId, organisationModules.teamId),
-                    eq(organisationTeamUsers.userId, user.id),
-                  ),
-                ),
-            ),
-          ),
-        ),
-      );
+      .where(and(...accessConditions));
   }
 
   // Connection config with the secret redacted (never returned to clients).

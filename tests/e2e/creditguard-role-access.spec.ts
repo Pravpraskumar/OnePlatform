@@ -22,6 +22,27 @@ const overview = menu('creditguard-overview', 'Overview', '/app/product/CreditGu
 const requests = menu('creditguard-requests', 'Requests', '/app/product/CreditGuard/requests');
 const reports = menu('creditguard-reports', 'Reports', '/app/product/CreditGuard/reports');
 
+test('General User has workspace access without products or modules', async ({ page }) => {
+  await setupAuthenticatedApp(page, {
+    currentUser: {
+      id: 'basic-user',
+      b2cOid: 'oidc:basic-user',
+      email: 'basic.user@example.test',
+      displayName: 'Basic User',
+      globalRoles: ['General User'],
+    },
+    menus: [],
+  });
+  await page.route('**/api/products?*', (route) => route.fulfill({ contentType: 'application/json', body: '[]' }));
+
+  await page.goto('/app/products');
+  await expect(page.getByText('No modules are assigned to this organisation.')).toBeVisible();
+
+  await page.goto('/app/product/CreditGuard');
+  await expect(page.getByRole('heading', { name: 'Unable to open CreditGuard' })).toBeVisible();
+  await expect(page.getByText('This module is not assigned to the selected organisation.')).toBeVisible();
+});
+
 test('CreditGuard Requestor receives request screens without reviewer or setup screens', async ({ page }) => {
   await setupAuthenticatedApp(page, {
     menus: [menu('creditguard', 'CreditGuard', null, [overview, requests])],

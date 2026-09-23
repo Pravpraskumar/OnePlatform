@@ -91,6 +91,8 @@ The SPA supports Azure AD B2C and local email/password authentication. Local ses
 
 Optional OIDC login is configured in the root `.env` with `OIDC_WELL_KNOWN`, `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, and `OIDC_PROVIDER_LABEL`. Register `http://localhost:4000/api/auth/oidc/callback` with the provider for local development. `OIDC_SKIP_VERIFY=true` is development-only and skips ID-token signature checks; it is ignored when `NODE_ENV=production`.
 
+New OIDC users are provisioned as active Members of McDermott IT with the `General User` role. This basic role does not grant access to products or modules; a product-scoped role must be assigned separately.
+
 The selected organisation is persisted in `localStorage`. Core data is scoped by organisation membership, while product data is isolated in each product database. Product access also opens a licensed session; a heartbeat keeps the concurrent-seat lease active.
 
 ## Common commands
