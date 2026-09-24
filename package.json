@@ -24,6 +24,7 @@
     "start:prod": "concurrently -k -n core,creditguard,prime,web -c blue,green,magenta,cyan \"npm:start:prod:core\" \"npm:start:prod:creditguard\" \"npm:start:prod:prime\" \"npm:start:prod:frontend\"",
     "db:core:migrate": "npm run db:migrate --workspace @platform/core-backend",
     "db:core:seed": "npm run db:seed --workspace @platform/core-backend",
+    "db:creditguard:seed": "npm run db:seed --workspace @platform/creditguard-service",
     "db:generate:all": "npm run db:generate --workspaces --if-present",
     "db:migrate:all": "npm run db:migrate --workspaces --if-present",
     "db:setup": "npm run db:migrate:all && npm run db:core:seed",
