@@ -49,6 +49,7 @@ interface RequestDetailsInput {
   currentContractStatus: string;
   beneficiaryAddress: string;
   pcgLanguage: string;
+  maximumLiabilityMode: 'number' | 'text';
   maximumLiabilityPercent?: string | null;
   obligationsExtinguishedMode: 'date' | 'text';
   obligationsExtinguishedDate?: string | null;
@@ -889,6 +890,7 @@ export class AppController {
     const resolveEntityNames = (values: string[]) => values.map((value) => entityNames.get(value) ?? value);
     const pdfDetails = {
       ...record.details,
+      maximumLiabilityMode: record.details.maximumLiabilityMode === 'text' ? 'text' as const : 'number' as const,
       parentCompanyOfferingGuarantee: resolveEntityNames(record.details.parentCompanyOfferingGuarantee),
       requestingEntity: resolveEntityNames(record.details.requestingEntity),
       contractingEntity: resolveEntityNames(record.details.contractingEntity),
@@ -1303,6 +1305,9 @@ export class AppController {
     if (!['date', 'text'].includes(input.obligationsExtinguishedMode)) {
       throw new BadRequestException('Obligations extinguished mode must be date or text');
     }
+    if (!['number', 'text'].includes(input.maximumLiabilityMode)) {
+      throw new BadRequestException('Maximum liability mode must be number or text');
+    }
     if (input.parentEntityType !== undefined && !['localEntity', 'mil'].includes(input.parentEntityType)) {
       throw new BadRequestException('Parent entity type must be localEntity or mil');
     }
@@ -1322,6 +1327,7 @@ export class AppController {
       currentContractStatus: input.currentContractStatus.trim(),
       beneficiaryAddress: input.beneficiaryAddress.trim(),
       pcgLanguage: input.pcgLanguage.trim(),
+      maximumLiabilityMode: input.maximumLiabilityMode,
       maximumLiabilityPercent: optionalText(input.maximumLiabilityPercent),
       obligationsExtinguishedMode: input.obligationsExtinguishedMode,
       obligationsExtinguishedDate: optionalText(input.obligationsExtinguishedDate),

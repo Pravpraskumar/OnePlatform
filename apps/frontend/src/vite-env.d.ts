@@ -8,6 +8,7 @@ interface ImportMetaEnv {
   readonly VITE_B2C_POLICY_SIGNUP_SIGNIN: string;
   readonly VITE_B2C_CLIENT_ID: string;
   readonly VITE_B2C_API_SCOPE: string;
+  readonly VITE_ENABLE_B2C_LOGIN: string;
 }
 
 interface ImportMeta {

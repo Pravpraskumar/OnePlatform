@@ -23,6 +23,7 @@ interface RequestDetailsForm {
   currentContractStatus: string;
   beneficiaryAddress: string;
   pcgLanguage: 'Standard Description' | 'Beneficiary / Client Required Format';
+  maximumLiabilityMode: 'number' | 'text';
   maximumLiabilityPercent: string;
   obligationsExtinguishedMode: 'date' | 'text';
   obligationsExtinguishedDate: string;
@@ -120,6 +121,7 @@ function createInitialDetails(requesterName: string): RequestDetailsForm {
     currentContractStatus: '',
     beneficiaryAddress: '',
     pcgLanguage: 'Beneficiary / Client Required Format',
+    maximumLiabilityMode: 'number',
     maximumLiabilityPercent: '',
     obligationsExtinguishedMode: 'date',
     obligationsExtinguishedDate: '',
@@ -155,6 +157,7 @@ function normaliseDetails(input: Partial<RequestDetailsForm> | null, requesterNa
     requestingEntity: Array.isArray(input.requestingEntity) ? input.requestingEntity : [],
     contractingEntity: Array.isArray(input.contractingEntity) ? input.contractingEntity : [],
     beneficiaryAddress: input.beneficiaryAddress ?? '',
+    maximumLiabilityMode: input.maximumLiabilityMode === 'text' ? 'text' : 'number',
     maximumLiabilityPercent: input.maximumLiabilityPercent ?? '',
     obligationsExtinguishedDate: input.obligationsExtinguishedDate ?? '',
     optionalComments: input.optionalComments ?? '',
@@ -172,17 +175,6 @@ function normaliseDetails(input: Partial<RequestDetailsForm> | null, requesterNa
     corporateTreasuryApproval: input.corporateTreasuryApproval ?? '',
     corporateTreasuryApprovalDate: input.corporateTreasuryApprovalDate ?? '',
   };
-}
-
-async function creditGuardRequest<T>(path: string, init?: RequestInit): Promise<T> {
-  const headers = new Headers(init?.headers);
-  if (!(init?.body instanceof FormData)) headers.set('Content-Type', 'application/json');
-  const response = await fetch(`/creditguard-api${path}`, {
-    ...init,
-    headers,
-  });
-  if (!response.ok) throw new Error(`CreditGuard API ${response.status}: ${await response.text()}`);
-  return response.json() as Promise<T>;
 }
 
 function TextField({ label, value, onChange, required, type = 'text', readOnly }: { label: string; value: string; onChange: (value: string) => void; required?: boolean; type?: string; readOnly?: boolean }) {
@@ -320,7 +312,7 @@ export function CreditGuardRequestFormPage({ mode }: RequestFormProps) {
 
   useEffect(() => {
     if (!product) return;
-    creditGuardRequest<BusinessEntityOption[]>('/business-entities')
+    api.creditGuard<BusinessEntityOption[]>('/business-entities')
       .then(setBusinessEntities)
       .catch((error) => setErrorMessage((error as Error).message));
   }, [product]);
@@ -329,7 +321,7 @@ export function CreditGuardRequestFormPage({ mode }: RequestFormProps) {
     if (!isEdit || !requestId || !selectedOrg) return;
     setLoadingRequest(true);
     setRequestLoadError('');
-    creditGuardRequest<CreditGuardRequestRecord>(`/requests/${requestId}?orgId=${encodeURIComponent(selectedOrg.id)}`)
+    api.creditGuard<CreditGuardRequestRecord>(`/requests/${requestId}?orgId=${encodeURIComponent(selectedOrg.id)}`)
       .then((request) => {
         setProjectId(request.projectId ?? '');
         setSummary({
@@ -359,7 +351,7 @@ export function CreditGuardRequestFormPage({ mode }: RequestFormProps) {
 
   useEffect(() => {
     if (!isEdit || !requestId || !selectedOrg) return;
-    creditGuardRequest<RequestAttachment[]>(`/requests/${requestId}/attachments?orgId=${encodeURIComponent(selectedOrg.id)}`)
+    api.creditGuard<RequestAttachment[]>(`/requests/${requestId}/attachments?orgId=${encodeURIComponent(selectedOrg.id)}`)
       .then(setAttachments)
       .catch((error) => setErrorMessage((error as Error).message));
   }, [isEdit, requestId, selectedOrg]);
@@ -417,7 +409,7 @@ export function CreditGuardRequestFormPage({ mode }: RequestFormProps) {
         body.append('file', file);
         body.append('orgId', selectedOrg.id);
         body.append('uploadedBy', requesterName || details.requesterName);
-        uploaded.push(await creditGuardRequest<RequestAttachment>(`/requests/${savedRequestId}/attachments`, {
+        uploaded.push(await api.creditGuard<RequestAttachment>(`/requests/${savedRequestId}/attachments`, {
           method: 'POST',
           body,
         }));
@@ -444,7 +436,7 @@ export function CreditGuardRequestFormPage({ mode }: RequestFormProps) {
     setAttachingRequest(true);
     try {
       if (summary.status === 'Draft') {
-        await creditGuardRequest(`/requests/${requestId}`, {
+        await api.creditGuard(`/requests/${requestId}`, {
           method: 'PATCH',
           body: JSON.stringify(requestPayload('Draft')),
         });
@@ -465,7 +457,7 @@ export function CreditGuardRequestFormPage({ mode }: RequestFormProps) {
   const removeAttachment = async (attachment: RequestAttachment) => {
     if (!requestId || !selectedOrg || !window.confirm(`Delete ${attachment.originalFileName}?`)) return;
     try {
-      await creditGuardRequest(`/requests/${requestId}/attachments/${attachment.id}?orgId=${encodeURIComponent(selectedOrg.id)}`, { method: 'DELETE' });
+      await api.creditGuard(`/requests/${requestId}/attachments/${attachment.id}?orgId=${encodeURIComponent(selectedOrg.id)}`, { method: 'DELETE' });
       setAttachments((current) => current.filter((candidate) => candidate.id !== attachment.id));
       notify('Attachment deleted.', 'success');
     } catch (error) {
@@ -516,7 +508,7 @@ export function CreditGuardRequestFormPage({ mode }: RequestFormProps) {
     setSaving(true);
     setErrorMessage('');
     try {
-      const saved = await (isEdit ? creditGuardRequest<{ id: string }>(`/requests/${requestId}`, {
+      const saved = await (isEdit ? api.creditGuard<{ id: string }>(`/requests/${requestId}`, {
         method: isEdit ? 'PATCH' : 'POST',
         body: JSON.stringify(requestPayload(isEdit ? summary.status : 'Draft')),
       }) : api.creditGuard<{ id: string }>('/requests', { method: 'POST', body: JSON.stringify(requestPayload('Draft')) }));
@@ -560,9 +552,9 @@ export function CreditGuardRequestFormPage({ mode }: RequestFormProps) {
     try {
       const draftPayload = requestPayload('Draft');
       if (!isReassignment) {
-        await creditGuardRequest(`/requests/${requestId}`, { method: 'PATCH', body: JSON.stringify(draftPayload) });
+        await api.creditGuard(`/requests/${requestId}`, { method: 'PATCH', body: JSON.stringify(draftPayload) });
       }
-      const submitted = await creditGuardRequest<CreditGuardRequestRecord>(`/requests/${requestId}/submit-for-review`, {
+      const submitted = await api.creditGuard<CreditGuardRequestRecord>(`/requests/${requestId}/submit-for-review`, {
         method: 'POST',
         body: JSON.stringify({
           orgId: selectedOrg.id,
@@ -765,7 +757,15 @@ export function CreditGuardRequestFormPage({ mode }: RequestFormProps) {
             <TextAreaField label="Beneficiary address" value={details.beneficiaryAddress} onChange={(value) => updateDetail('beneficiaryAddress', value)} required rows={2} />
           </fieldset>
           <div className="grid grid-cols-[1fr_7rem] gap-3"><TextField label="Contract value" type="number" value={summary.amount} onChange={(value) => setSummary({ ...summary, amount: value })} required /><TextField label="Currency" value={summary.currency} onChange={(value) => setSummary({ ...summary, currency: value.toUpperCase() })} required /></div>
-          <TextField label="Maximum liability cap (% of contract value)" type="number" value={details.maximumLiabilityPercent} onChange={(value) => updateDetail('maximumLiabilityPercent', value)} />
+          <div>
+            <div className="flex items-center justify-between gap-3">
+              <span className={labelClass}>Maximum liability cap</span>
+              <div className="inline-flex rounded-md border border-slate-300 bg-slate-50 p-0.5" aria-label="Maximum liability cap input mode">
+                {(['number', 'text'] as const).map((mode) => <button key={mode} type="button" onClick={() => setDetails((current) => current.maximumLiabilityMode === mode ? current : { ...current, maximumLiabilityMode: mode, maximumLiabilityPercent: '' })} className={`rounded px-2.5 py-1 text-xs font-medium ${details.maximumLiabilityMode === mode ? 'bg-white text-brand shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>{mode === 'number' ? 'Number' : 'Text'}</button>)}
+              </div>
+            </div>
+            <input aria-label="Maximum liability cap value" className={inputClass} type={details.maximumLiabilityMode === 'number' ? 'number' : 'text'} value={details.maximumLiabilityPercent} onChange={(event) => updateDetail('maximumLiabilityPercent', event.target.value)} placeholder={details.maximumLiabilityMode === 'text' ? 'e.g. As agreed in the final contract' : '% of contract value'} />
+          </div>
           <div>
             <div className="flex items-center justify-between gap-3">
               <span className={labelClass}>All contractual obligations should be extinguished</span>

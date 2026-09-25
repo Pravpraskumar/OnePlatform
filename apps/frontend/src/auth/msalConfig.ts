@@ -12,7 +12,9 @@ const policy = import.meta.env.VITE_B2C_POLICY_SIGNUP_SIGNIN as string;
 const clientId = import.meta.env.VITE_B2C_CLIENT_ID as string;
 const apiScope = import.meta.env.VITE_B2C_API_SCOPE as string;
 
-export const isMsalAvailable = window.isSecureContext && !!window.crypto?.subtle;
+export const isMsalAvailable = import.meta.env.VITE_ENABLE_B2C_LOGIN === 'true'
+  && window.isSecureContext
+  && !!window.crypto?.subtle;
 
 export const unavailableMsalInstance: IPublicClientApplication = {
   ...stubbedPublicClientApplication,

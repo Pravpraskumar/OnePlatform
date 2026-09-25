@@ -24,6 +24,7 @@ export interface PcgRequestFormData {
     currentContractStatus: string;
     beneficiaryAddress: string | null;
     pcgLanguage: string;
+    maximumLiabilityMode: 'number' | 'text';
     maximumLiabilityPercent: string | null;
     obligationsExtinguishedDate: string | null;
     backgroundRequirement: string;
@@ -93,7 +94,7 @@ export async function generatePcgRequestForm(data: PcgRequestFormData): Promise<
   drawCell({ x: margin, y, width: leftContractColumn, height: contractRowHeight, label: 'Current status', value: details.currentContractStatus, fill: paleGray });
   drawCompactCell(page, regular, bold, { x: margin + leftContractColumn, y, width: leftContractColumn, height: contractDetailHeight, label: 'Contract', value: data.applicant, fill: paleGray });
   drawCompactCell(page, regular, bold, { x: margin + leftContractColumn, y: y - contractDetailHeight, width: leftContractColumn, height: contractDetailHeight, label: 'Value in USD', value: `${data.currency} ${formatAmount(data.amount)}`, fill: paleGray });
-  drawCompactCell(page, regular, bold, { x: margin + leftContractColumn, y: y - contractDetailHeight * 2, width: leftContractColumn, height: contractDetailHeight, label: 'Max liability cap (% of contract value)', value: details.maximumLiabilityPercent ? `${details.maximumLiabilityPercent}%` : null, fill: paleGray });
+  drawCompactCell(page, regular, bold, { x: margin + leftContractColumn, y: y - contractDetailHeight * 2, width: leftContractColumn, height: contractDetailHeight, label: details.maximumLiabilityMode === 'number' ? 'Max liability cap (% of contract value)' : 'Max liability cap', value: details.maximumLiabilityPercent ? `${details.maximumLiabilityPercent}${details.maximumLiabilityMode === 'number' ? '%' : ''}` : null, fill: paleGray });
   drawCell({ x: margin + twoThirds, y, width: oneThird, height: contractRowHeight, label: 'Contractual obligations extinguished', value: formatDate(details.obligationsExtinguishedDate), fill: paleGray });
   y -= contractRowHeight;
 
