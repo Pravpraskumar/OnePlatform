@@ -439,6 +439,27 @@ export const smtpConfigurations = pgTable(
   }),
 );
 
+export const emailTemplates = pgTable(
+  'email_templates',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    productId: uuid('product_id')
+      .notNull()
+      .references(() => products.id, { onDelete: 'cascade' }),
+    eventKey: varchar('event_key', { length: 100 }).notNull(),
+    eventName: varchar('event_name', { length: 150 }).notNull(),
+    subjectTemplate: varchar('subject_template', { length: 300 }).notNull(),
+    bodyTemplate: text('body_template').notNull(),
+    availablePlaceholders: jsonb('available_placeholders').$type<string[]>().notNull(),
+    updatedBy: uuid('updated_by').references(() => users.id, { onDelete: 'set null' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    productEventIdx: uniqueIndex('email_templates_product_event_idx').on(table.productId, table.eventKey),
+  }),
+);
+
 export const emailDeliveryLogs = pgTable(
   'email_delivery_logs',
   {
@@ -450,6 +471,7 @@ export const emailDeliveryLogs = pgTable(
     recipientName: varchar('recipient_name', { length: 200 }).notNull(),
     recipientEmail: varchar('recipient_email', { length: 320 }).notNull(),
     subject: varchar('subject', { length: 300 }).notNull(),
+    bodyCiphertext: text('body_ciphertext'),
     status: varchar('status', { length: 20 }).notNull(),
     smtpConfigurationId: uuid('smtp_configuration_id').references(() => smtpConfigurations.id, { onDelete: 'set null' }),
     smtpConfigurationName: varchar('smtp_configuration_name', { length: 100 }),

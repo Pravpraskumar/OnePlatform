@@ -5,6 +5,7 @@ import { createDb, createPool } from './index';
 import { hashPassword } from '../common/password';
 import {
   appSettings,
+  emailTemplates,
   menus,
   organisations,
   organisationModules,
@@ -15,6 +16,7 @@ import {
   userRoles,
   users,
 } from './schema';
+import { EMAIL_TEMPLATE_DEFINITIONS } from '../settings/email-template-definitions';
 
 config({ path: resolve(__dirname, '../../../../.env') });
 
@@ -148,6 +150,18 @@ async function main() {
     }
   }
   const [creditGuardProduct] = await db.select().from(products).where(eq(products.code, 'CreditGuard'));
+  for (const definition of EMAIL_TEMPLATE_DEFINITIONS) {
+    const [product] = await db.select({ id: products.id }).from(products).where(eq(products.code, definition.productCode));
+    if (!product) continue;
+    await db.insert(emailTemplates).values({
+      productId: product.id,
+      eventKey: definition.eventKey,
+      eventName: definition.eventName,
+      subjectTemplate: definition.subjectTemplate,
+      bodyTemplate: definition.bodyTemplate,
+      availablePlaceholders: [...definition.availablePlaceholders],
+    }).onConflictDoNothing({ target: [emailTemplates.productId, emailTemplates.eventKey] });
+  }
   if (creditGuardProduct) {
     const creditGuardRoleDefs = [
       {
@@ -378,6 +392,8 @@ async function main() {
   await grant(settingsMenu.id, [globalAdminRole?.id]);
   const emailLogsMenu = await upsertMenu({ name: 'Email Delivery Logs', route: '/admin/email-logs', icon: 'mail-check', parentId: globalAdministration.id, displayOrder: 10 });
   await grant(emailLogsMenu.id, [globalAdminRole?.id]);
+  const emailTemplatesMenu = await upsertMenu({ name: 'Email Templates', route: '/admin/email-templates', icon: 'mail', parentId: globalAdministration.id, displayOrder: 11 });
+  await grant(emailTemplatesMenu.id, [globalAdminRole?.id]);
   await db.delete(menus).where(eq(menus.route, '/admin/user-settings'));
 
   const organisationProjectsMenu = await upsertMenu({ name: 'Organisation Projects', route: '/org/projects', icon: 'folder-cog', parentId: administration.id, displayOrder: 1 });

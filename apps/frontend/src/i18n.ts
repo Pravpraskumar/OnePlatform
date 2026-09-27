@@ -12,6 +12,7 @@ const resources = {
     translation: {
       products: 'Products',
       resources: 'Resources',
+      help: 'Help',
       selectOrganisation: 'Select Organisation',
       switch: 'Switch Organisation',
       orgSettings: 'Org-Settings',
@@ -28,6 +29,7 @@ const resources = {
     translation: {
       products: 'Produkte',
       resources: 'Ressourcen',
+      help: 'Hilfe',
       selectOrganisation: 'Organisation wählen',
       switch: 'Wechseln Organisation',
       orgSettings: 'Org-Einstellungen',
@@ -44,6 +46,7 @@ const resources = {
     translation: {
       products: 'Produits',
       resources: 'Ressources',
+      help: 'Aide',
       selectOrganisation: 'Choisir une organisation',
       switch: 'Changer Organisation',
       orgSettings: 'Paramètres',

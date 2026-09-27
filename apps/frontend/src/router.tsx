@@ -26,6 +26,7 @@ import { AdminSettingsPage } from '@/pages/admin/AdminSettingsPage';
 import { AdminRolesPage } from '@/pages/admin/AdminRolesPage';
 import { AdminSessionsPage } from '@/pages/admin/AdminSessionsPage';
 import { AdminEmailLogsPage } from '@/pages/admin/AdminEmailLogsPage';
+import { AdminEmailTemplatesPage } from '@/pages/admin/AdminEmailTemplatesPage';
 import { AdminProjectsPage } from '@/pages/admin/AdminProjectsPage';
 import { GlobalUsersPage } from '@/pages/admin/GlobalUsersPage';
 import { UserSettingsPage } from '@/pages/admin/UserSettingsPage';
@@ -61,7 +62,9 @@ export const router = createBrowserRouter([
       { path: '/app/product/CreditGuard/application-setup/business-entities', element: <CreditGuardBusinessEntitiesPage /> },
       { path: '/app/product/CreditGuard/application-setup/module-users', element: <CreditGuardModuleUsersPage /> },
       { path: '/app/product/CreditGuard/application-setup/integration', element: <CreditGuardIntegrationPage /> },
-      { path: '/app/resources', element: <ResourcesPage /> },
+      { path: '/app/resources', element: <Navigate to="/app/help" replace /> },
+      { path: '/app/help', element: <ResourcesPage /> },
+      { path: '/app/help/:topicId', element: <ResourcesPage /> },
       { path: '/account/settings', element: <AccountSettingsPage /> },
       { path: '/admin/users', element: <GlobalUsersPage /> },
       { path: '/admin/user-assignments', element: <AdminUsersPage /> },
@@ -73,6 +76,7 @@ export const router = createBrowserRouter([
       { path: '/admin/roles', element: <AdminRolesPage /> },
       { path: '/admin/sessions', element: <AdminSessionsPage /> },
       { path: '/admin/email-logs', element: <AdminEmailLogsPage /> },
+      { path: '/admin/email-templates', element: <AdminEmailTemplatesPage /> },
       { path: '/admin/projects', element: <AdminProjectsPage /> },
       { path: '/org/settings', element: <OrgSettingsPage /> },
       { path: '/org/teams', element: <OrgTeamsPage /> },

@@ -1,11 +1,12 @@
 import { useTranslation } from 'react-i18next';
-import { NavLink } from 'react-router-dom';
-import { Menu as MenuIcon, Palette } from 'lucide-react';
+import { Link, NavLink, useLocation } from 'react-router-dom';
+import { CircleHelp, Menu as MenuIcon, Palette } from 'lucide-react';
 import { clsx } from 'clsx';
 import { Logo } from './Logo';
 import { LanguageSelector } from './LanguageSelector';
 import { OrgSelector } from './OrgSelector';
 import { useTheme } from '@/state/ThemeProvider';
+import { getContextualHelpTopic } from '@/help/helpContent';
 
 interface Props {
   onToggleSidebar: () => void;
@@ -15,12 +16,15 @@ interface Props {
 
 const tabs = [
   { key: 'products', to: '/app/products' },
-  { key: 'resources', to: '/app/resources' },
 ];
 
 export function AppHeader({ onToggleSidebar, onOpenThemeCustomizer, moduleName }: Props) {
   const { t } = useTranslation();
   const { headerColor, headerTextColor } = useTheme();
+  const location = useLocation();
+  const onHelpScreen = location.pathname.startsWith('/app/help');
+  const helpPath = onHelpScreen ? '/app/help' : `/app/help/${getContextualHelpTopic(location.pathname)}`;
+  const helpState = onHelpScreen ? undefined : { from: `${location.pathname}${location.search}` };
 
   return (
     <header
@@ -57,10 +61,20 @@ export function AppHeader({ onToggleSidebar, onOpenThemeCustomizer, moduleName }
             {t(tab.key)}
           </NavLink>
         ))}
+        <Link
+          to={helpPath}
+          state={helpState}
+          className={clsx('inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium', onHelpScreen ? 'bg-brand/10 text-brand-header' : 'hover:bg-black/5')}
+          style={onHelpScreen ? undefined : { color: headerTextColor }}
+          aria-label="Open help for this screen"
+        >
+          <CircleHelp size={17} />{t('help')}
+        </Link>
       </nav>
 
       {/* Right: language + organisation selectors */}
       <div className="flex items-center gap-2">
+        <Link to={helpPath} state={helpState} className="rounded-md p-2 hover:bg-black/5 md:hidden" style={{ color: headerTextColor }} aria-label="Open help for this screen" title="Help"><CircleHelp size={19} /></Link>
         <button type="button" onClick={onOpenThemeCustomizer} className="rounded-md p-2 hover:bg-black/5" style={{ color: headerTextColor }} aria-label="Customize theme" title="Customize theme">
           <Palette size={19} />
         </button>

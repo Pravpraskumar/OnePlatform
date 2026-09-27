@@ -11,8 +11,8 @@ export const user = {
 
 export const organisation = {
   id: 'org-1',
-  name: 'Global Organisation',
-  slug: 'global',
+  name: 'McDermott IT',
+  slug: 'mcdermott-it',
   status: 'active',
   membership: 'Owner',
 };
@@ -128,6 +128,19 @@ export const emailDeliveryLog = {
   createdAt: '2026-09-02T00:00:00.000Z',
 };
 
+export const emailTemplate = {
+  id: 'template-1',
+  productId: 'product-cg',
+  productCode: 'CreditGuard',
+  productName: 'CreditGuard',
+  eventKey: 'request-review',
+  eventName: 'Request Review',
+  subjectTemplate: 'CreditGuard request {{requestNumber}} requires review',
+  bodyTemplate: 'Hello {{recipientName}},\n\nReview request {{requestNumber}}.',
+  availablePlaceholders: ['recipientName', 'requestNumber'],
+  updatedAt: '2026-09-02T00:00:00.000Z',
+};
+
 export const approver = {
   id: 'approver-1',
   orgId: organisation.id,
@@ -215,6 +228,7 @@ function bodyFor(url: URL, method: string): unknown {
   if (path === '/notifications/request-review') return { status: 'sent', logId: emailDeliveryLog.id };
   if (path === '/notifications/reviewer-reassignment') return { status: 'sent', logId: emailDeliveryLog.id };
   if (path === '/notifications/email-logs') return [emailDeliveryLog];
+  if (path === '/notifications/email-templates') return [emailTemplate];
   if (/\/modules\/[^/]+\/projects$/.test(path)) {
     return { projectRequired: false, lastProjectId: null, projects: [{ id: 'project-1', code: 'P-100', name: 'Demo Project' }] };
   }

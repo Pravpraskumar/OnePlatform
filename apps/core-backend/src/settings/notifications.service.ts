@@ -2,14 +2,16 @@ import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundEx
 import { and, asc, desc, eq, gt, isNull, or } from 'drizzle-orm';
 import nodemailer from 'nodemailer';
 import type { AuthUser } from '../auth/auth-user.interface';
-import { decryptSecret } from '../common/crypto';
+import { decryptSecret, encryptSecret } from '../common/crypto';
 import type { CoreDb } from '../db';
 import { CORE_DB } from '../db/database.module';
 import {
   emailDeliveryLogs,
+  emailTemplates,
   organisationModules,
   organisationTeamUsers,
   organisationUsers,
+  products,
   roles,
   smtpConfigurations,
   userRoles,
@@ -25,8 +27,11 @@ interface DeliveryLogBase {
   recipientName: string;
   recipientEmail: string;
   subject: string;
+  body: string;
   initiatedBy: string;
 }
+
+const PLACEHOLDER_PATTERN = /{{\s*([A-Za-z][A-Za-z0-9]*)\s*}}/g;
 
 @Injectable()
 export class NotificationsService {
@@ -43,7 +48,16 @@ export class NotificationsService {
     const reviewer = reviewers.find((candidate) => candidate.id === input.reviewerUserId);
     if (!reviewer) throw new BadRequestException('Selected user is not an eligible CreditGuard reviewer');
 
-    const subject = `CreditGuard request ${input.requestNumber} requires review`;
+    const rendered = await this.renderTemplate(input.productId, 'request-review', {
+      recipientName: reviewer.displayName,
+      requestNumber: input.requestNumber,
+      instrumentType: input.instrumentType,
+      applicant: input.applicant,
+      beneficiary: input.beneficiary,
+      amount: input.amount.toLocaleString('en-US'),
+      currency: input.currency.toUpperCase(),
+      requestedBy: input.requestedBy,
+    });
     const logBase = {
       orgId: input.orgId,
       module: 'CreditGuard',
@@ -51,22 +65,11 @@ export class NotificationsService {
       referenceId: input.requestId,
       recipientName: reviewer.displayName,
       recipientEmail: reviewer.email,
-      subject,
+      subject: rendered.subject,
+      body: rendered.body,
       initiatedBy: user.id,
     };
-    return this.deliver(logBase, [
-      `Hello ${reviewer.displayName},`,
-      '',
-      'A CreditGuard request has been submitted for your review.',
-      `Request number: ${input.requestNumber}`,
-      `Instrument type: ${input.instrumentType}`,
-      `Applicant: ${input.applicant}`,
-      `Beneficiary: ${input.beneficiary}`,
-      `Amount: ${input.currency.toUpperCase()} ${input.amount.toLocaleString('en-US')}`,
-      `Requested by: ${input.requestedBy}`,
-      '',
-      'Sign in to Designer Platform to review the request.',
-    ].join('\n'));
+    return this.deliver(logBase);
   }
 
   async sendReviewerReassignment(input: SendReviewerReassignmentNotificationDto, user: AuthUser) {
@@ -88,7 +91,11 @@ export class NotificationsService {
       .where(eq(users.id, input.previousReviewerUserId));
     if (!previousReviewer) throw new BadRequestException('Previous reviewer is not a member of this organisation');
 
-    const subject = `CreditGuard request ${input.requestNumber} reassigned`;
+    const rendered = await this.renderTemplate(input.productId, 'review-reassignment', {
+      recipientName: previousReviewer.displayName,
+      requestNumber: input.requestNumber,
+      newReviewerName: newReviewer.displayName,
+    });
     return this.deliver({
       orgId: input.orgId,
       module: 'CreditGuard',
@@ -96,16 +103,10 @@ export class NotificationsService {
       referenceId: input.requestId,
       recipientName: previousReviewer.displayName,
       recipientEmail: previousReviewer.email,
-      subject,
+      subject: rendered.subject,
+      body: rendered.body,
       initiatedBy: user.id,
-    }, [
-      `Hello ${previousReviewer.displayName},`,
-      '',
-      `CreditGuard request ${input.requestNumber} has been withdrawn from your review queue.`,
-      `It has been reassigned to ${newReviewer.displayName}.`,
-      '',
-      'No further review action is required from you.',
-    ].join('\n'));
+    });
   }
 
   listEmailLogs(module?: string, status?: string) {
@@ -114,7 +115,24 @@ export class NotificationsService {
       status?.trim() ? eq(emailDeliveryLogs.status, status.trim()) : undefined,
     ].filter((filter): filter is NonNullable<typeof filter> => !!filter);
     return this.db
-      .select()
+      .select({
+        id: emailDeliveryLogs.id,
+        orgId: emailDeliveryLogs.orgId,
+        module: emailDeliveryLogs.module,
+        eventType: emailDeliveryLogs.eventType,
+        referenceId: emailDeliveryLogs.referenceId,
+        recipientName: emailDeliveryLogs.recipientName,
+        recipientEmail: emailDeliveryLogs.recipientEmail,
+        subject: emailDeliveryLogs.subject,
+        status: emailDeliveryLogs.status,
+        smtpConfigurationId: emailDeliveryLogs.smtpConfigurationId,
+        smtpConfigurationName: emailDeliveryLogs.smtpConfigurationName,
+        providerMessageId: emailDeliveryLogs.providerMessageId,
+        errorMessage: emailDeliveryLogs.errorMessage,
+        initiatedBy: emailDeliveryLogs.initiatedBy,
+        sentAt: emailDeliveryLogs.sentAt,
+        createdAt: emailDeliveryLogs.createdAt,
+      })
       .from(emailDeliveryLogs)
       .where(filters.length > 0 ? and(...filters) : undefined)
       .orderBy(desc(emailDeliveryLogs.createdAt))
@@ -136,18 +154,82 @@ export class NotificationsService {
       recipientName: failedLog.recipientName,
       recipientEmail: failedLog.recipientEmail,
       subject: failedLog.subject,
+      body: failedLog.bodyCiphertext ? decryptSecret(failedLog.bodyCiphertext) : [
+        `Hello ${failedLog.recipientName},`,
+        '',
+        `This is a retry of the ${failedLog.module} ${failedLog.eventType} notification.`,
+        `Reference: ${failedLog.referenceId}`,
+        '',
+        'Sign in to Designer Platform for more information.',
+      ].join('\n'),
       initiatedBy: user.id,
-    }, [
-      `Hello ${failedLog.recipientName},`,
-      '',
-      `This is a retry of the ${failedLog.module} ${failedLog.eventType} notification.`,
-      `Reference: ${failedLog.referenceId}`,
-      '',
-      'Sign in to Designer Platform for more information.',
-    ].join('\n'));
+    });
   }
 
-  private async deliver(logBase: DeliveryLogBase, text: string) {
+  listEmailTemplates() {
+    return this.db
+      .select({
+        id: emailTemplates.id,
+        productId: emailTemplates.productId,
+        productCode: products.code,
+        productName: products.name,
+        eventKey: emailTemplates.eventKey,
+        eventName: emailTemplates.eventName,
+        subjectTemplate: emailTemplates.subjectTemplate,
+        bodyTemplate: emailTemplates.bodyTemplate,
+        availablePlaceholders: emailTemplates.availablePlaceholders,
+        updatedAt: emailTemplates.updatedAt,
+      })
+      .from(emailTemplates)
+      .innerJoin(products, eq(products.id, emailTemplates.productId))
+      .orderBy(asc(products.name), asc(emailTemplates.eventName));
+  }
+
+  async updateEmailTemplate(
+    id: string,
+    input: { subjectTemplate: string; bodyTemplate: string },
+    userId: string,
+  ) {
+    const [template] = await this.db.select().from(emailTemplates).where(eq(emailTemplates.id, id));
+    if (!template) throw new NotFoundException('Email template not found');
+    const subjectTemplate = input.subjectTemplate.trim();
+    const bodyTemplate = input.bodyTemplate.trim();
+    if (!subjectTemplate || !bodyTemplate) throw new BadRequestException('Subject and body are required');
+    this.validatePlaceholders(subjectTemplate, template.availablePlaceholders);
+    this.validatePlaceholders(bodyTemplate, template.availablePlaceholders);
+    const [updated] = await this.db
+      .update(emailTemplates)
+      .set({ subjectTemplate, bodyTemplate, updatedBy: userId, updatedAt: new Date() })
+      .where(eq(emailTemplates.id, id))
+      .returning();
+    return updated;
+  }
+
+  private async renderTemplate(productId: string, eventKey: string, values: Record<string, string>) {
+    const [template] = await this.db
+      .select()
+      .from(emailTemplates)
+      .where(and(eq(emailTemplates.productId, productId), eq(emailTemplates.eventKey, eventKey)));
+    if (!template) throw new NotFoundException(`Email template is not configured for event ${eventKey}`);
+    const render = (value: string) => value.replace(PLACEHOLDER_PATTERN, (_match, key: string) => {
+      if (!(key in values)) throw new BadRequestException(`Email template value is unavailable: ${key}`);
+      return values[key];
+    });
+    return { subject: render(template.subjectTemplate), body: render(template.bodyTemplate) };
+  }
+
+  private validatePlaceholders(value: string, available: string[]) {
+    const unknown = [...value.matchAll(PLACEHOLDER_PATTERN)]
+      .map((match) => match[1])
+      .filter((placeholder) => !available.includes(placeholder));
+    if (unknown.length > 0) {
+      throw new BadRequestException(`Unknown email template placeholders: ${[...new Set(unknown)].join(', ')}`);
+    }
+  }
+
+  private async deliver(logBase: DeliveryLogBase) {
+    const { body, ...logValues } = logBase;
+    const bodyCiphertext = encryptSecret(body);
     const [smtp] = await this.db
       .select()
       .from(smtpConfigurations)
@@ -158,7 +240,8 @@ export class NotificationsService {
     if (!smtp) {
       const message = 'No enabled SMTP configuration is available';
       const [log] = await this.db.insert(emailDeliveryLogs).values({
-        ...logBase,
+        ...logValues,
+        bodyCiphertext,
         status: 'Failed',
         errorMessage: message,
       }).returning({ id: emailDeliveryLogs.id });
@@ -181,10 +264,11 @@ export class NotificationsService {
         from: { name: smtp.fromName, address: smtp.fromEmail },
         to: { name: logBase.recipientName, address: logBase.recipientEmail },
         subject: logBase.subject,
-        text,
+        text: logBase.body,
       });
       const [log] = await this.db.insert(emailDeliveryLogs).values({
-        ...logBase,
+        ...logValues,
+        bodyCiphertext,
         status: 'Sent',
         smtpConfigurationId: smtp.id,
         smtpConfigurationName: smtp.name,
@@ -195,7 +279,8 @@ export class NotificationsService {
     } catch (error) {
       const message = this.safeError(error);
       const [log] = await this.db.insert(emailDeliveryLogs).values({
-        ...logBase,
+        ...logValues,
+        bodyCiphertext,
         status: 'Failed',
         smtpConfigurationId: smtp.id,
         smtpConfigurationName: smtp.name,

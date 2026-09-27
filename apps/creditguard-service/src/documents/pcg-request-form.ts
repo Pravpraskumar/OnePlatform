@@ -89,12 +89,11 @@ export async function generatePcgRequestForm(data: PcgRequestFormData): Promise<
   y -= 45;
 
   const leftContractColumn = twoThirds / 2;
-  const contractRowHeight = 108;
-  const contractDetailHeight = contractRowHeight / 3;
+  const contractRowHeight = 72;
+  const contractDetailHeight = contractRowHeight / 2;
   drawCell({ x: margin, y, width: leftContractColumn, height: contractRowHeight, label: 'Current status', value: details.currentContractStatus, fill: paleGray });
-  drawCompactCell(page, regular, bold, { x: margin + leftContractColumn, y, width: leftContractColumn, height: contractDetailHeight, label: 'Contract', value: data.applicant, fill: paleGray });
-  drawCompactCell(page, regular, bold, { x: margin + leftContractColumn, y: y - contractDetailHeight, width: leftContractColumn, height: contractDetailHeight, label: 'Value in USD', value: `${data.currency} ${formatAmount(data.amount)}`, fill: paleGray });
-  drawCompactCell(page, regular, bold, { x: margin + leftContractColumn, y: y - contractDetailHeight * 2, width: leftContractColumn, height: contractDetailHeight, label: details.maximumLiabilityMode === 'number' ? 'Max liability cap (% of contract value)' : 'Max liability cap', value: details.maximumLiabilityPercent ? `${details.maximumLiabilityPercent}${details.maximumLiabilityMode === 'number' ? '%' : ''}` : null, fill: paleGray });
+  drawCompactCell(page, regular, bold, { x: margin + leftContractColumn, y, width: leftContractColumn, height: contractDetailHeight, label: 'Contract Value in USD', value: `${data.currency} ${formatAmount(data.amount)}`, fill: paleGray });
+  drawCompactCell(page, regular, bold, { x: margin + leftContractColumn, y: y - contractDetailHeight, width: leftContractColumn, height: contractDetailHeight, label: details.maximumLiabilityMode === 'number' ? 'Max liability cap (% of contract value)' : 'Max liability cap', value: details.maximumLiabilityPercent ? `${details.maximumLiabilityPercent}${details.maximumLiabilityMode === 'number' ? '%' : ''}` : null, fill: paleGray });
   drawCell({ x: margin + twoThirds, y, width: oneThird, height: contractRowHeight, label: 'Contractual obligations extinguished', value: formatDate(details.obligationsExtinguishedDate), fill: paleGray });
   y -= contractRowHeight;
 
@@ -189,7 +188,8 @@ function addPage(pdf: PDFDocument, pages: PDFPage[], bold: PDFFont, logo: PDFIma
   const logoSize = logo.scaleToFit(Number.POSITIVE_INFINITY, brandFontSize);
   page.drawImage(logo, { x: margin, y: pageHeight - 40, width: logoSize.width, height: logoSize.height });
   page.drawText('McDermott', { x: margin + logoSize.width + 7, y: pageHeight - 36, size: brandFontSize, font: bold, color: white });
-  page.drawText('REQUEST FOR PARENT COMPANY GUARANTEE', { x: margin, y: pageHeight - 67, size: 12, font: bold, color: white });
+  const headerText = `REQUEST FOR ${data.instrumentType.toUpperCase()}`;
+  page.drawText(headerText, { x: margin, y: pageHeight - 67, size: 12, font: bold, color: white });
   const requestNumber = safeText(bold, data.requestNumber);
   page.drawText(requestNumber, { x: pageWidth - margin - bold.widthOfTextAtSize(requestNumber, 10), y: pageHeight - 67, size: 10, font: bold, color: white });
   page.drawRectangle({ x: margin, y: 724, width: 4, height: 24, color: red });

@@ -110,7 +110,7 @@ export function AppSidebar({ collapsed }: Props) {
     visibleMenus = hideOrganisationAdminMenus(visibleMenus);
   }
   if (selectedOrg && selectedOrg.slug !== 'mcdermott-it') {
-    const globalOnlyRoutes = ['/admin/users', '/admin/user-assignments', '/admin/user-settings', '/admin/projects', '/admin/settings'];
+    const globalOnlyRoutes = ['/admin/users', '/admin/user-assignments', '/admin/user-settings', '/admin/projects', '/admin/settings', '/admin/email-templates'];
     const hideGlobalMenus = (nodes: MenuNode[]): MenuNode[] =>
       nodes
         .filter((node) => !globalOnlyRoutes.includes(node.route ?? ''))
@@ -122,7 +122,7 @@ export function AppSidebar({ collapsed }: Props) {
     if (!selectedOrg) return;
     if (
       selectedOrg.slug !== 'mcdermott-it' &&
-      ['/admin/users', '/admin/user-assignments', '/admin/user-settings', '/admin/projects', '/admin/settings'].includes(location.pathname)
+      ['/admin/users', '/admin/user-assignments', '/admin/user-settings', '/admin/projects', '/admin/settings', '/admin/email-templates'].includes(location.pathname)
     ) {
       navigate('/org/members', { replace: true });
     }

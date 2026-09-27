@@ -2,6 +2,8 @@
 
 Designer Platform is an enterprise, multi-tenant SaaS monorepo. It provides a shared administration plane, organisation and user management, concurrent-seat licensing, and independently deployable product services. CreditGuard is the first implemented product; PRIME currently exposes a placeholder service.
 
+Authenticated users can open the in-application Help Center from any screen. The Help action opens documentation for the current platform or CreditGuard workflow, while `/app/help` provides searchable access to all topics.
+
 For a visual overview of the technology stack, service boundaries, data ownership, security, deployment, and key workflows, see [Architecture Guide](docs/ARCHITECTURE.md). For a model-oriented description of routes, state, APIs, data ownership, and business rules, see [Application Logic](docs/APPLICATION_LOGIC.md). For the interactive identity, organisation, role, product, project, and session access model, open the [User Access Guide](docs/USER_ACCESS_GUIDE.html).
 
 ## Repository layout
@@ -173,7 +175,7 @@ CreditGuard request attachments support PDF and DOCX files. Development defaults
 
 Applying the attachment migration creates `request_attachments`. Do not enable attachment uploads until the migration has been reviewed and applied in the target environment. Product-service authentication must also be hardened before the CreditGuard API is directly exposed.
 
-CreditGuard review submission uses the enabled global SMTP configuration maintained under Global Administration settings. Core owns outbound delivery and `email_delivery_logs`; CreditGuard owns the reviewer snapshot and request status transition. Apply both core and CreditGuard migrations before enabling review submission. SMTP delivery failures leave the request Under Review and are visible to Global Administrators under Email Delivery Logs.
+CreditGuard review submission uses the enabled global SMTP configuration maintained under Global Administration settings. Global Administrators configure the seeded Request Review and Review Reassignment subjects and bodies under Email Templates; each event exposes an allowlisted set of `{{variableName}}` placeholders. Core owns outbound delivery, templates, and `email_delivery_logs`; CreditGuard owns the reviewer snapshot and request status transition. Apply both core and CreditGuard migrations before enabling review submission. SMTP delivery failures leave the request Under Review and are visible to Global Administrators under Email Delivery Logs.
 
 The Edit Request Attachments block provides **Attach Request** while attachments remain editable. It saves current Draft values, creates a new McDermott-branded Parent Company Guarantee PDF from persisted request details, and stores it through the configured private document provider as `<request number> latest.pdf`. Repeating the action replaces the previous latest PDF. The document excludes approver and approval details, and generation is independent of **Review done**.
 

@@ -1,0 +1,37 @@
+export const EMAIL_TEMPLATE_DEFINITIONS = [
+  {
+    productCode: 'CreditGuard',
+    eventKey: 'request-review',
+    eventName: 'Request Review',
+    availablePlaceholders: ['recipientName', 'requestNumber', 'instrumentType', 'applicant', 'beneficiary', 'amount', 'currency', 'requestedBy'],
+    subjectTemplate: 'CreditGuard request {{requestNumber}} requires review',
+    bodyTemplate: [
+      'Hello {{recipientName}},',
+      '',
+      'A CreditGuard request has been submitted for your review.',
+      'Request number: {{requestNumber}}',
+      'Instrument type: {{instrumentType}}',
+      'Applicant: {{applicant}}',
+      'Beneficiary: {{beneficiary}}',
+      'Amount: {{currency}} {{amount}}',
+      'Requested by: {{requestedBy}}',
+      '',
+      'Sign in to Designer Platform to review the request.',
+    ].join('\n'),
+  },
+  {
+    productCode: 'CreditGuard',
+    eventKey: 'review-reassignment',
+    eventName: 'Review Reassignment',
+    availablePlaceholders: ['recipientName', 'requestNumber', 'newReviewerName'],
+    subjectTemplate: 'CreditGuard request {{requestNumber}} reassigned',
+    bodyTemplate: [
+      'Hello {{recipientName}},',
+      '',
+      'CreditGuard request {{requestNumber}} has been withdrawn from your review queue.',
+      'It has been reassigned to {{newReviewerName}}.',
+      '',
+      'No further review action is required from you.',
+    ].join('\n'),
+  },
+] as const;

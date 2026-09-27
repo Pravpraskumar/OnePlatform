@@ -95,6 +95,8 @@ Global role assignments have no organisation ID. Organisation authority is also 
 
 The sidebar is data-driven from `GET /api/menus/mine?orgId=...`. Menu trees contain route, icon, display order, product link, and optional `readonly`/`editable` access. Product-linked menus are returned only when the selected organisation has an active module assignment within its validity window. The frontend hides organisation-administration routes from ordinary members and global-only routes outside the global organisation. Backend guards remain the security boundary; hiding navigation is not authorization.
 
+The authenticated header exposes Help on every screen. It maps the current pathname to the nearest isolated topic, including dynamic CreditGuard request form, approver, and approval routes, and passes the originating URL so users can return directly to their work. Help content is static frontend documentation and does not reveal inaccessible application records or grant access to documented screens.
+
 ## 6. Route inventory
 
 ### Public
@@ -123,7 +125,9 @@ The sidebar is data-driven from `GET /api/menus/mine?orgId=...`. Menu trees cont
 | `/app/product/CreditGuard/application-setup/business-entities` | Permission-aware business entity CRUD |
 | `/app/product/CreditGuard/application-setup/module-users` | Organisation-scoped approver CRUD by default, plus a read-only, role-filterable view of eligible module users |
 | `/app/product/CreditGuard/application-setup/integration` | Administrator-only Signit authorization-key configuration |
-| `/app/resources` | Shared resources |
+| `/app/help` | Searchable application and CreditGuard documentation grouped into isolated topics |
+| `/app/help/:topicId` | Direct contextual help for a specific screen or workflow |
+| `/app/resources` | Compatibility redirect to `/app/help` |
 | `/account/settings` | Profile, password, account deletion |
 
 ### Organisation administration
@@ -148,6 +152,7 @@ The sidebar is data-driven from `GET /api/menus/mine?orgId=...`. Menu trees cont
 | `/admin/licenses` | Organisation-product license assignment |
 | `/admin/settings` | Default org, session timeout, branding/banner |
 | `/admin/email-logs` | Global Administrator view of outbound module email attempts and delivery status |
+| `/admin/email-templates` | Global Administrator editor for product email event subjects and bodies |
 | `/admin/roles` | Role CRUD and menu access modes |
 | `/admin/sessions` | Active session monitoring |
 | `/admin/projects` | Global project CRUD |
@@ -221,11 +226,17 @@ CreditGuard forwards the generated payload and selected PDFs to the authenticate
 
 Reports derive, in the browser, total/open request counts, counts by status/instrument, and amount totals grouped by currency.
 
+### Email templates
+
+Global Administrators manage product event templates through `GET /notifications/email-templates` and `PUT /notifications/email-templates/:id`. Subjects and bodies accept `{{variableName}}` placeholders from an event-specific allowlist. Updates reject unknown placeholders, and delivery fails explicitly when a runtime value is unavailable. Seeded CreditGuard events are `request-review` and `review-reassignment`; repeat seeds add missing defaults without overwriting administrator edits.
+
+Rendered bodies are excluded from delivery-log responses and retained only as AES-256-GCM ciphertext using `CONNECTION_SECRET_KEY`, allowing failed delivery retries to resend the exact original content. Legacy rows without ciphertext retain the generic retry fallback. Rollback removes the route and event-template reads first, then reverts core migration `0026_brave_norrin_radd.sql`; retaining the encrypted retry column during a forward recovery avoids losing retry fidelity.
+
 ## 10. Data ownership and relationships
 
 ### Core database
 
-Key entities are users, organisations, organisation users, teams, products, organisation modules, module user designations, projects, project modules, user-project/module assignments, roles, user roles, menus, role menus, product database connections, sessions, app settings, SMTP configurations, email delivery logs, and user preferences.
+Key entities are users, organisations, organisation users, teams, products, organisation modules, module user designations, projects, project modules, user-project/module assignments, roles, user roles, menus, role menus, product database connections, sessions, app settings, SMTP configurations, email templates, email delivery logs, and user preferences.
 
 Important relationships:
 
