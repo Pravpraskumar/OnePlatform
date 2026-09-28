@@ -22,6 +22,30 @@ interface RequestDetailsForm {
   proposalContractReference: string;
   currentContractStatus: string;
   beneficiaryAddress: string;
+  beneficiaryAcceptsUsBank: boolean | null;
+  bankCountry: string;
+  instrumentLanguage: 'beneficiary' | 'standard' | '';
+  issueType: 'new' | 'amendment' | '';
+  amendmentInstrumentNumber: string;
+  exactIssueDate: string;
+  expiryDate: string;
+  instrumentPurpose: 'Bid Bond' | 'Performance Bond' | 'Cash Retention' | 'Collateral' | 'Advance Payment' | 'Other' | '';
+  instrumentPurposeOther: string;
+  beneficiaryContactName: string;
+  beneficiaryContactEmail: string;
+  beneficiaryContactPhone: string;
+  companyBillingNumber: string;
+  contractProjectTitle: string;
+  contractDate: string;
+  contractValue: string;
+  tenderContractNumber: string;
+  contractDescription: string;
+  amendmentAmountFrom: string;
+  amendmentAmountTo: string;
+  amendmentExpiryFrom: string;
+  amendmentExpiryTo: string;
+  amendmentOther: string;
+  deliveryMethod: 'beneficiaryAddress' | 'other' | '';
   pcgLanguage: 'Standard Description' | 'Beneficiary / Client Required Format';
   maximumLiabilityMode: 'number' | 'text';
   maximumLiabilityPercent: string;
@@ -101,6 +125,8 @@ const inputClass = 'mt-1 w-full rounded-md border border-slate-300 bg-white px-3
 const labelClass = 'text-sm font-medium text-slate-700';
 const sectionTitleClass = 'text-base font-semibold text-slate-900';
 const instrumentTypes = ['Letter of Comfort', 'Parent Company Guarantee', 'Standby Letter of Credit', 'Bank Guarantee', 'Documentary Letter of Credit'];
+const bankInstrumentTypes = new Set(['Standby Letter of Credit', 'Bank Guarantee', 'Documentary Letter of Credit']);
+const milLegalEntityName = 'McDermott International Limited';
 
 function formatFileSize(bytes: number) {
   if (bytes < 1024) return `${bytes} B`;
@@ -120,6 +146,30 @@ function createInitialDetails(requesterName: string): RequestDetailsForm {
     proposalContractReference: '',
     currentContractStatus: '',
     beneficiaryAddress: '',
+    beneficiaryAcceptsUsBank: null,
+    bankCountry: '',
+    instrumentLanguage: '',
+    issueType: '',
+    amendmentInstrumentNumber: '',
+    exactIssueDate: '',
+    expiryDate: '',
+    instrumentPurpose: '',
+    instrumentPurposeOther: '',
+    beneficiaryContactName: '',
+    beneficiaryContactEmail: '',
+    beneficiaryContactPhone: '',
+    companyBillingNumber: '',
+    contractProjectTitle: '',
+    contractDate: '',
+    contractValue: '',
+    tenderContractNumber: '',
+    contractDescription: '',
+    amendmentAmountFrom: '',
+    amendmentAmountTo: '',
+    amendmentExpiryFrom: '',
+    amendmentExpiryTo: '',
+    amendmentOther: '',
+    deliveryMethod: '',
     pcgLanguage: 'Beneficiary / Client Required Format',
     maximumLiabilityMode: 'number',
     maximumLiabilityPercent: '',
@@ -157,6 +207,10 @@ function normaliseDetails(input: Partial<RequestDetailsForm> | null, requesterNa
     requestingEntity: Array.isArray(input.requestingEntity) ? input.requestingEntity : [],
     contractingEntity: Array.isArray(input.contractingEntity) ? input.contractingEntity : [],
     beneficiaryAddress: input.beneficiaryAddress ?? '',
+    beneficiaryAcceptsUsBank: typeof input.beneficiaryAcceptsUsBank === 'boolean' ? input.beneficiaryAcceptsUsBank : null,
+    contractValue: input.contractValue === null || input.contractValue === undefined ? '' : String(input.contractValue),
+    amendmentAmountFrom: input.amendmentAmountFrom === null || input.amendmentAmountFrom === undefined ? '' : String(input.amendmentAmountFrom),
+    amendmentAmountTo: input.amendmentAmountTo === null || input.amendmentAmountTo === undefined ? '' : String(input.amendmentAmountTo),
     maximumLiabilityMode: input.maximumLiabilityMode === 'text' ? 'text' : 'number',
     maximumLiabilityPercent: input.maximumLiabilityPercent ?? '',
     obligationsExtinguishedDate: input.obligationsExtinguishedDate ?? '',
@@ -238,6 +292,7 @@ function EntityLovField({ label, values, options, multiple, onChange }: { label:
 export function CreditGuardRequestFormPage({ mode }: RequestFormProps) {
   const isEdit = mode === 'edit';
   const formRef = useRef<HTMLFormElement>(null);
+  const attachmentInputRef = useRef<HTMLInputElement>(null);
   const api = useApi();
   const { instance } = useMsal();
   const navigate = useNavigate();
@@ -366,11 +421,17 @@ export function CreditGuardRequestFormPage({ mode }: RequestFormProps) {
   const { session, loading: sessionLoading, error: sessionError } = useProductSession(api, selectedOrg?.id, product?.id, product?.name, projectId || undefined, projectRequired, allocationChecked);
   const updateDetail = <K extends keyof RequestDetailsForm>(key: K, value: RequestDetailsForm[K]) => setDetails((current) => ({ ...current, [key]: value }));
   
+  const milBusinessEntity = businessEntities.find((entity) => entity.legalEntityName.trim().toLowerCase() === milLegalEntityName.toLowerCase());
+
   useEffect(() => {
-    if (summary.instrumentType !== 'Parent Company Guarantee' && details.parentEntityType !== 'localEntity') {
-      setDetails((current) => ({ ...current, parentEntityType: 'localEntity' }));
-    }
-  }, [summary.instrumentType, details.parentEntityType]);
+    if (summary.instrumentType !== 'Parent Company Guarantee' || details.parentEntityType !== 'mil' || !milBusinessEntity) return;
+    if (details.parentCompanyOfferingGuarantee.length === 1 && details.parentCompanyOfferingGuarantee[0] === milBusinessEntity.id) return;
+    setDetails((current) => ({
+      ...current,
+      enableMultiEntity: false,
+      parentCompanyOfferingGuarantee: [milBusinessEntity.id],
+    }));
+  }, [details.parentCompanyOfferingGuarantee, details.parentEntityType, milBusinessEntity, summary.instrumentType]);
   
   const requestsUrl = `/app/product/CreditGuard/requests${projectId ? `?projectId=${encodeURIComponent(projectId)}` : ''}`;
   const isWorkflowReadOnly = isEdit && ['Under Review', 'Reviewed', 'Sent for Approval'].includes(summary.status);
@@ -382,6 +443,13 @@ export function CreditGuardRequestFormPage({ mode }: RequestFormProps) {
   ));
   const requestPdfFileName = `${summary.requestNumber.replace(/[<>:"/\\|?*\u0000-\u001f]/g, '_')} latest.pdf`;
   const hasRequestPdf = attachments.some((attachment) => attachment.originalFileName === requestPdfFileName);
+  const isBankInstrument = bankInstrumentTypes.has(summary.instrumentType);
+  const payloadDetails = {
+    ...details,
+    contractValue: details.contractValue === '' ? null : Number(details.contractValue),
+    amendmentAmountFrom: details.amendmentAmountFrom === '' ? null : Number(details.amendmentAmountFrom),
+    amendmentAmountTo: details.amendmentAmountTo === '' ? null : Number(details.amendmentAmountTo),
+  };
   const requestPayload = (status: string) => ({
     orgId: selectedOrg!.id,
     projectId: projectId || null,
@@ -396,25 +464,31 @@ export function CreditGuardRequestFormPage({ mode }: RequestFormProps) {
     dueDate: summary.dueDate || null,
     nextReviewDate: summary.nextReviewDate || null,
     notes: summary.notes || null,
-    details,
+    details: payloadDetails,
   });
+
+  const loadAttachments = async (savedRequestId: string) => {
+    if (!selectedOrg) return;
+    const result = await api.creditGuard<RequestAttachment[]>(`/requests/${savedRequestId}/attachments?orgId=${encodeURIComponent(selectedOrg.id)}`);
+    if (!Array.isArray(result)) throw new Error('The attachment list response is invalid.');
+    setAttachments(result);
+  };
 
   const uploadFiles = async (savedRequestId: string, files: File[]) => {
     if (!selectedOrg) return;
     setUploading(true);
     try {
-      const uploaded: RequestAttachment[] = [];
       for (const file of files) {
         const body = new FormData();
         body.append('file', file);
         body.append('orgId', selectedOrg.id);
         body.append('uploadedBy', requesterName || details.requesterName);
-        uploaded.push(await api.creditGuard<RequestAttachment>(`/requests/${savedRequestId}/attachments`, {
+        await api.creditGuard<RequestAttachment>(`/requests/${savedRequestId}/attachments`, {
           method: 'POST',
           body,
-        }));
+        });
       }
-      setAttachments((current) => [...uploaded, ...current]);
+      await loadAttachments(savedRequestId);
     } finally {
       setUploading(false);
     }
@@ -493,7 +567,8 @@ export function CreditGuardRequestFormPage({ mode }: RequestFormProps) {
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     if (!selectedOrg || !session || (projectRequired && !projectId)) return;
-    if ([details.parentCompanyOfferingGuarantee, details.requestingEntity, details.contractingEntity].some((values) => values.length === 0)) {
+    const requiredEntities = isBankInstrument ? [details.requestingEntity] : [details.parentCompanyOfferingGuarantee, details.requestingEntity, details.contractingEntity];
+    if (requiredEntities.some((values) => values.length === 0)) {
       notify('Select a business entity in each required entity field.', 'warning');
       return;
     }
@@ -543,7 +618,8 @@ export function CreditGuardRequestFormPage({ mode }: RequestFormProps) {
       return;
     }
     if (!isReassignment && !formRef.current?.reportValidity()) return;
-    if (!isReassignment && [details.parentCompanyOfferingGuarantee, details.requestingEntity, details.contractingEntity].some((values) => values.length === 0)) {
+    const requiredEntities = isBankInstrument ? [details.requestingEntity] : [details.parentCompanyOfferingGuarantee, details.requestingEntity, details.contractingEntity];
+    if (!isReassignment && requiredEntities.some((values) => values.length === 0)) {
       notify('Select a business entity in each required entity field.', 'warning');
       return;
     }
@@ -656,16 +732,68 @@ export function CreditGuardRequestFormPage({ mode }: RequestFormProps) {
         <h2 className={sectionTitleClass}>Request</h2>
         <div className="mt-4 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           <TextField label="Request number" value={summary.requestNumber} onChange={(value) => setSummary({ ...summary, requestNumber: value })} required />
-          <label className={labelClass}>Instrument type<span className="ml-1 text-red-600">*</span><select className={inputClass} value={summary.instrumentType} onChange={(event) => setSummary({ ...summary, instrumentType: event.target.value })} required>{instrumentTypes.map((type) => <option key={type} value={type}>{type}</option>)}</select></label>
+          <label className={labelClass}>Instrument type<span className="ml-1 text-red-600">*</span><select className={inputClass} value={summary.instrumentType} onChange={(event) => {
+            const instrumentType = event.target.value;
+            setSummary({ ...summary, instrumentType });
+            if (instrumentType !== 'Parent Company Guarantee') {
+              setDetails((current) => ({ ...current, parentEntityType: 'localEntity' }));
+            }
+          }} required>{instrumentTypes.map((type) => <option key={type} value={type}>{type}</option>)}</select></label>
           <div className={labelClass}>Workflow status<div className={`${inputClass} bg-slate-50 text-slate-600`}>{isEdit ? summary.status : 'Draft'}</div></div>
           <label className={labelClass}>Email request to Corporate Treasury in earlier stages?<span className="ml-1 text-red-600">*</span><select className={inputClass} value={details.emailRequestToCorporateTreasury ? 'yes' : 'no'} onChange={(event) => updateDetail('emailRequestToCorporateTreasury', event.target.value === 'yes')} required><option value="no">No</option><option value="yes">Yes</option></select></label>
-          <TextField label="Date submitted" type="date" value={details.dateSubmitted} onChange={(value) => updateDetail('dateSubmitted', value)} required />
-          <TextField label="Date required by" type="date" value={summary.dueDate} onChange={(value) => setSummary({ ...summary, dueDate: value })} required />
+          <TextField label={isBankInstrument ? 'Date of Request' : 'Date submitted'} type="date" value={details.dateSubmitted} onChange={(value) => updateDetail('dateSubmitted', value)} required />
+          <TextField label={isBankInstrument ? 'Date Instrument Required' : 'Date required by'} type="date" value={summary.dueDate} onChange={(value) => setSummary({ ...summary, dueDate: value })} required />
           {!isEdit && <TextField label="Requested by" value={details.requesterName} onChange={(value) => updateDetail('requesterName', value)} required />}
         </div>
       </Card>
 
-      <Card className="mb-2">
+      {isBankInstrument && <Card className="mb-2">
+        <h2 className={sectionTitleClass}>Instrument details</h2>
+        <div className="mt-4 grid gap-4 md:grid-cols-2">
+          <label className={labelClass}>Will the beneficiary accept an instrument from a US bank?<span className="ml-1 text-red-600">*</span><select className={inputClass} value={details.beneficiaryAcceptsUsBank === null ? '' : details.beneficiaryAcceptsUsBank ? 'yes' : 'no'} onChange={(event) => updateDetail('beneficiaryAcceptsUsBank', event.target.value === '' ? null : event.target.value === 'yes')} required><option value="">Select an option</option><option value="yes">Yes</option><option value="no">No</option></select></label>
+          {details.beneficiaryAcceptsUsBank === false && <TextField label="Country where the issuing bank must be located" value={details.bankCountry} onChange={(value) => updateDetail('bankCountry', value)} required />}
+          <label className={labelClass}>Instrument language<span className="ml-1 text-red-600">*</span><select className={inputClass} value={details.instrumentLanguage} onChange={(event) => updateDetail('instrumentLanguage', event.target.value as RequestDetailsForm['instrumentLanguage'])} required><option value="">Select language source</option><option value="beneficiary">Beneficiary-specific language</option><option value="standard">Standard company language</option></select></label>
+          <label className={labelClass}>Issue type<span className="ml-1 text-red-600">*</span><select className={inputClass} value={details.issueType} onChange={(event) => updateDetail('issueType', event.target.value as RequestDetailsForm['issueType'])} required><option value="">Select issue type</option><option value="new">New issuance</option><option value="amendment">Amendment</option></select></label>
+          {details.issueType === 'amendment' && <TextField label="Existing LC/BG number" value={details.amendmentInstrumentNumber} onChange={(value) => updateDetail('amendmentInstrumentNumber', value)} required />}
+          <TextField label="Currency denomination" value={summary.currency} onChange={(value) => setSummary({ ...summary, currency: value.toUpperCase() })} required />
+          <TextField label="Instrument Value" type="number" value={summary.amount} onChange={(value) => setSummary({ ...summary, amount: value })} required />
+          <TextField label="Exact Issue Date Needed" type="date" value={details.exactIssueDate} onChange={(value) => updateDetail('exactIssueDate', value)} required />
+          <TextField label="Expiry Date" type="date" value={details.expiryDate} onChange={(value) => updateDetail('expiryDate', value)} required />
+          <label className={labelClass}>Purpose of instrument<span className="ml-1 text-red-600">*</span><select className={inputClass} value={details.instrumentPurpose} onChange={(event) => updateDetail('instrumentPurpose', event.target.value as RequestDetailsForm['instrumentPurpose'])} required><option value="">Select purpose</option>{['Bid Bond', 'Performance Bond', 'Cash Retention', 'Collateral', 'Advance Payment', 'Other'].map((purpose) => <option key={purpose} value={purpose}>{purpose}</option>)}</select></label>
+          {details.instrumentPurpose === 'Other' && <TextField label="Other purpose" value={details.instrumentPurposeOther} onChange={(value) => updateDetail('instrumentPurposeOther', value)} required />}
+        </div>
+      </Card>}
+
+      {isBankInstrument && <Card className="mb-2">
+        <h2 className={sectionTitleClass}>Beneficiary and contract</h2>
+        <div className="mt-4 grid gap-4 md:grid-cols-2">
+          <TextField label="Beneficiary full legal name" value={summary.beneficiary} onChange={(value) => setSummary({ ...summary, beneficiary: value })} required />
+          <TextAreaField label="Beneficiary full address" value={details.beneficiaryAddress} onChange={(value) => updateDetail('beneficiaryAddress', value)} required rows={2} />
+          <TextField label="Beneficiary contact name" value={details.beneficiaryContactName} onChange={(value) => updateDetail('beneficiaryContactName', value)} required />
+          <TextField label="Beneficiary contact email" type="email" value={details.beneficiaryContactEmail} onChange={(value) => updateDetail('beneficiaryContactEmail', value)} required />
+          <TextField label="Beneficiary contact phone" type="tel" value={details.beneficiaryContactPhone} onChange={(value) => updateDetail('beneficiaryContactPhone', value)} required />
+          <EntityLovField label="LC/BG Issued on Behalf of" values={details.requestingEntity} options={businessEntities} multiple={false} onChange={(values) => updateDetail('requestingEntity', values)} />
+          <TextField label="Company Billing Number" value={details.companyBillingNumber} onChange={(value) => updateDetail('companyBillingNumber', value)} required />
+          <TextField label="Contract/Project Title" value={details.contractProjectTitle} onChange={(value) => updateDetail('contractProjectTitle', value)} required />
+          <TextField label="Contract Date" type="date" value={details.contractDate} onChange={(value) => updateDetail('contractDate', value)} required />
+          <TextField label="Contract Value" type="number" value={details.contractValue} onChange={(value) => updateDetail('contractValue', value)} required />
+          <TextField label="Tender/Contract Number" value={details.tenderContractNumber} onChange={(value) => updateDetail('tenderContractNumber', value)} required />
+          <div className="md:col-span-2"><TextAreaField label="Contract Description" value={details.contractDescription} onChange={(value) => updateDetail('contractDescription', value)} required /></div>
+        </div>
+      </Card>}
+
+      {isBankInstrument && details.issueType === 'amendment' && <Card className="mb-2">
+        <h2 className={sectionTitleClass}>Amendment details</h2>
+        <div className="mt-4 grid gap-4 md:grid-cols-2">
+          <TextField label="Amount From" type="number" value={details.amendmentAmountFrom} onChange={(value) => updateDetail('amendmentAmountFrom', value)} />
+          <TextField label="Amount To" type="number" value={details.amendmentAmountTo} onChange={(value) => updateDetail('amendmentAmountTo', value)} />
+          <TextField label="Expiration Date From" type="date" value={details.amendmentExpiryFrom} onChange={(value) => updateDetail('amendmentExpiryFrom', value)} />
+          <TextField label="Expiration Date To" type="date" value={details.amendmentExpiryTo} onChange={(value) => updateDetail('amendmentExpiryTo', value)} />
+          <div className="md:col-span-2"><TextAreaField label="Other Amendment" value={details.amendmentOther} onChange={(value) => updateDetail('amendmentOther', value)} /></div>
+        </div>
+      </Card>}
+
+      {!isBankInstrument && <Card className="mb-2">
         <h2 className={sectionTitleClass}>Guarantee and contract</h2>
         
         {summary.instrumentType === 'Parent Company Guarantee' && (
@@ -684,13 +812,20 @@ export function CreditGuardRequestFormPage({ mode }: RequestFormProps) {
                     key={type}
                     type="button"
                     onClick={() => {
-                      updateDetail('parentEntityType', type);
                       if (type === 'mil') {
-                        updateDetail('parentCompanyOfferingGuarantee', []);
-                        if (details.enableMultiEntity) {
-                          changeMultiEntity(false);
+                        if (!milBusinessEntity) {
+                          notify(`${milLegalEntityName} is not configured in Business Entities.`, 'warning');
+                          return;
                         }
+                        setDetails((current) => ({
+                          ...current,
+                          parentEntityType: 'mil',
+                          enableMultiEntity: false,
+                          parentCompanyOfferingGuarantee: [milBusinessEntity.id],
+                        }));
+                        return;
                       }
+                      updateDetail('parentEntityType', type);
                     }}
                     className={`relative flex flex-col gap-3 rounded-lg border-2 p-4 text-left transition-all ${
                       isSelected
@@ -732,9 +867,7 @@ export function CreditGuardRequestFormPage({ mode }: RequestFormProps) {
           {summary.instrumentType === 'Parent Company Guarantee' && details.parentEntityType === 'mil' ? (
             <div className="md:col-span-2">
               <label className={labelClass}>Parent company offering guarantee<span className="ml-1 text-red-600">*</span></label>
-              <div className={`${inputClass} bg-slate-50 text-slate-600 cursor-not-allowed`}>
-                McDermott International Limited
-              </div>
+              <input className={`${inputClass} cursor-not-allowed bg-slate-50 text-slate-600`} value={milBusinessEntity ? `${milBusinessEntity.jobCodeEntity} - ${milBusinessEntity.legalEntityName}` : milLegalEntityName} readOnly aria-readonly="true" />
             </div>
           ) : (
             <EntityLovField label="Parent company offering guarantee" values={details.parentCompanyOfferingGuarantee} options={businessEntities} multiple={details.enableMultiEntity} onChange={(values) => updateDetail('parentCompanyOfferingGuarantee', values)} />
@@ -777,9 +910,18 @@ export function CreditGuardRequestFormPage({ mode }: RequestFormProps) {
           </div>
           <TextField label="Next review date" type="date" value={summary.nextReviewDate} onChange={(value) => setSummary({ ...summary, nextReviewDate: value })} />
         </div>
-      </Card>
+      </Card>}
 
-      <Card className="mb-2">
+      {isBankInstrument && <Card className="mb-2">
+        <h2 className={sectionTitleClass}>Delivery</h2>
+        <div className="mt-4 grid gap-4 md:grid-cols-2">
+          <label className={labelClass}>Delivery method<span className="ml-1 text-red-600">*</span><select className={inputClass} value={details.deliveryMethod} onChange={(event) => updateDetail('deliveryMethod', event.target.value as RequestDetailsForm['deliveryMethod'])} required><option value="">Select delivery method</option><option value="beneficiaryAddress">Deliver to beneficiary address</option><option value="other">Other</option></select></label>
+          {details.deliveryMethod === 'other' && <TextAreaField label="Other delivery instructions and contact details" value={details.deliveryInstructions} onChange={(value) => updateDetail('deliveryInstructions', value)} required />}
+          <div className="md:col-span-2"><TextAreaField label="Additional notes" value={summary.notes} onChange={(value) => setSummary({ ...summary, notes: value })} rows={2} /></div>
+        </div>
+      </Card>}
+
+      {!isBankInstrument && <Card className="mb-2">
         <h2 className={sectionTitleClass}>Supporting information</h2>
         <div className="mt-4 grid gap-4 md:grid-cols-2">
           <TextAreaField label="Background on requirement for guarantee" value={details.backgroundRequirement} onChange={(value) => updateDetail('backgroundRequirement', value)} required rows={5} />
@@ -789,7 +931,7 @@ export function CreditGuardRequestFormPage({ mode }: RequestFormProps) {
           <label className={labelClass}>PCG Language<select className={inputClass} value={details.pcgLanguage} onChange={(event) => updateDetail('pcgLanguage', event.target.value as RequestDetailsForm['pcgLanguage'])}><option>Standard Description</option><option>Beneficiary / Client Required Format</option></select></label>
           <TextAreaField label="Additional notes" value={summary.notes} onChange={(value) => setSummary({ ...summary, notes: value })} rows={2} />
         </div>
-      </Card>
+      </Card>}
       </fieldset>
       {isEdit && <Card>
           <div>
@@ -801,18 +943,19 @@ export function CreditGuardRequestFormPage({ mode }: RequestFormProps) {
                   <Button type="button" variant="secondary" onClick={() => void attachRequest()} disabled={attachingRequest || uploading}>
                     <FilePlus2 size={16} />{attachingRequest ? 'Attaching...' : 'Attach Request'}
                   </Button>
-                  <label className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-800 shadow-sm hover:bg-slate-100">
+                  <Button type="button" variant="secondary" onClick={() => attachmentInputRef.current?.click()} disabled={uploading || attachingRequest}>
                     <Upload size={16} />{uploading ? 'Uploading...' : 'Attach documents'}
-                    <input
-                      aria-label="Attach documents"
-                      className="sr-only"
-                      type="file"
-                      accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                      multiple
-                      disabled={uploading || attachingRequest}
-                      onChange={(event) => { void chooseFiles(event.target.files); event.target.value = ''; }}
-                    />
-                  </label>
+                  </Button>
+                  <input
+                    ref={attachmentInputRef}
+                    aria-label="Attachment file selector"
+                    className="hidden"
+                    type="file"
+                    accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                    multiple
+                    disabled={uploading || attachingRequest}
+                    onChange={(event) => { void chooseFiles(event.target.files); event.target.value = ''; }}
+                  />
                 </div>}
               </div>
               {attachments.length > 0 && <ul className="mt-3 divide-y divide-slate-200 border-t border-slate-200">

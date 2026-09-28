@@ -4,7 +4,7 @@ import { BadGatewayException, BadRequestException, Body, ConflictException, Cont
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ConfigService } from '@nestjs/config';
 import type { Response } from 'express';
-import { and, asc, desc, eq, inArray, isNull, or } from 'drizzle-orm';
+import { and, asc, desc, eq, getTableColumns, inArray, isNull, or } from 'drizzle-orm';
 import { PRODUCT_DB } from './db/database.module';
 import type { ProductDb } from './db';
 import { approvers, businessEntities, requestApprovers, requestAttachments, requestDetails, requests } from './db/schema';
@@ -48,6 +48,30 @@ interface RequestDetailsInput {
   proposalContractReference: string;
   currentContractStatus: string;
   beneficiaryAddress: string;
+  beneficiaryAcceptsUsBank?: boolean | null;
+  bankCountry?: string | null;
+  instrumentLanguage?: 'beneficiary' | 'standard' | null;
+  issueType?: 'new' | 'amendment' | null;
+  amendmentInstrumentNumber?: string | null;
+  exactIssueDate?: string | null;
+  expiryDate?: string | null;
+  instrumentPurpose?: string | null;
+  instrumentPurposeOther?: string | null;
+  beneficiaryContactName?: string | null;
+  beneficiaryContactEmail?: string | null;
+  beneficiaryContactPhone?: string | null;
+  companyBillingNumber?: string | null;
+  contractProjectTitle?: string | null;
+  contractDate?: string | null;
+  contractValue?: number | null;
+  tenderContractNumber?: string | null;
+  contractDescription?: string | null;
+  amendmentAmountFrom?: number | null;
+  amendmentAmountTo?: number | null;
+  amendmentExpiryFrom?: string | null;
+  amendmentExpiryTo?: string | null;
+  amendmentOther?: string | null;
+  deliveryMethod?: 'beneficiaryAddress' | 'other' | null;
   pcgLanguage: string;
   maximumLiabilityMode: 'number' | 'text';
   maximumLiabilityPercent?: string | null;
@@ -156,20 +180,35 @@ export class AppController {
   }
 
   @Get('requests')
-  listRequests(@Query('orgId') orgId?: string, @Query('projectId') projectId?: string) {
+  async listRequests(@Query('orgId') orgId?: string, @Query('projectId') projectId?: string) {
     if (!orgId) throw new BadRequestException('orgId is required');
-    return this.db
-      .select()
+    const rows = await this.db
+      .select({
+        ...getTableColumns(requests),
+        parentEntityType: requestDetails.parentEntityType,
+        parentCompanyOfferingGuarantee: requestDetails.parentCompanyOfferingGuarantee,
+      })
       .from(requests)
+      .leftJoin(requestDetails, eq(requestDetails.requestId, requests.id))
       .where(projectId ? and(eq(requests.orgId, orgId), eq(requests.projectId, projectId)) : eq(requests.orgId, orgId))
       .orderBy(desc(requests.updatedAt));
+    const entityIds = [...new Set(rows.flatMap((row) => row.parentCompanyOfferingGuarantee ?? []).filter((value) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)))];
+    const entities = entityIds.length === 0 ? [] : await this.db
+      .select({ id: businessEntities.id, legalEntityName: businessEntities.legalEntityName })
+      .from(businessEntities)
+      .where(inArray(businessEntities.id, entityIds));
+    const entityNames = new Map(entities.map((entity) => [entity.id, entity.legalEntityName]));
+    return rows.map(({ parentCompanyOfferingGuarantee, ...request }) => ({
+      ...request,
+      guaranteeByEntities: (parentCompanyOfferingGuarantee ?? []).map((value) => entityNames.get(value) ?? value),
+    }));
   }
 
   @Post('requests')
   @UseGuards(ProductAuthGuard)
   async createRequest(@Body() input: RequestInput, @Req() request: ProductAuthenticatedRequest) {
     this.validateRequest(input);
-    if (input.details) this.validateDetails(input.details);
+    if (input.details) this.validateDetails(input.details, input.instrumentType);
     return this.db.transaction(async (tx) => {
       const [created] = await tx.insert(requests).values({ ...this.values(input), status: 'Draft', requestedByUserId: request.user!.id }).returning();
       if (!input.details) return created;
@@ -196,7 +235,7 @@ export class AppController {
   @Patch('requests/:id')
   async updateRequest(@Param('id') id: string, @Body() input: RequestInput) {
     this.validateRequest(input);
-    if (input.details) this.validateDetails(input.details);
+    if (input.details) this.validateDetails(input.details, input.instrumentType);
     return this.db.transaction(async (tx) => {
       const [current] = await tx.select({ status: requests.status }).from(requests).where(and(eq(requests.id, id), eq(requests.orgId, input.orgId)));
       if (!current) throw new NotFoundException('Request not found');
@@ -1164,6 +1203,9 @@ export class AppController {
     if (!Number.isFinite(input.amount) || input.amount < 0) {
       throw new BadRequestException('Amount must be zero or greater');
     }
+    if (this.isBankInstrument(input.instrumentType) && !input.dueDate) {
+      throw new BadRequestException('Date instrument required is required');
+    }
   }
 
   private requireInternalServiceKey(suppliedServiceKey?: string) {
@@ -1281,7 +1323,73 @@ export class AppController {
     return { orgId, name, email };
   }
 
-  private validateDetails(input: RequestDetailsInput) {
+  private validateDetails(input: RequestDetailsInput, instrumentType: string) {
+    const isBankInstrument = this.isBankInstrument(instrumentType);
+    if (isBankInstrument) {
+      const required = [
+        'dateSubmitted',
+        'beneficiaryAddress',
+        'instrumentLanguage',
+        'issueType',
+        'exactIssueDate',
+        'expiryDate',
+        'instrumentPurpose',
+        'beneficiaryContactName',
+        'beneficiaryContactEmail',
+        'beneficiaryContactPhone',
+        'companyBillingNumber',
+        'contractProjectTitle',
+        'contractDate',
+        'tenderContractNumber',
+        'contractDescription',
+        'deliveryMethod',
+        'requesterName',
+      ] as const;
+      if (required.some((field) => !String(input[field] ?? '').trim()) || input.beneficiaryAcceptsUsBank === null || input.beneficiaryAcceptsUsBank === undefined) {
+        throw new BadRequestException('All required bank instrument fields must be completed');
+      }
+      if (!Array.isArray(input.requestingEntity) || input.requestingEntity.length === 0) {
+        throw new BadRequestException('LC/BG issued-on-behalf entity is required');
+      }
+      if (!Number.isFinite(input.contractValue) || Number(input.contractValue) < 0) {
+        throw new BadRequestException('Contract value must be zero or greater');
+      }
+      if (!['beneficiary', 'standard'].includes(input.instrumentLanguage!)) {
+        throw new BadRequestException('Instrument language must be beneficiary or standard');
+      }
+      if (!['new', 'amendment'].includes(input.issueType!)) {
+        throw new BadRequestException('Issue type must be new or amendment');
+      }
+      if (!['Bid Bond', 'Performance Bond', 'Cash Retention', 'Collateral', 'Advance Payment', 'Other'].includes(input.instrumentPurpose!)) {
+        throw new BadRequestException('Instrument purpose is invalid');
+      }
+      if (!['beneficiaryAddress', 'other'].includes(input.deliveryMethod!)) {
+        throw new BadRequestException('Delivery method is invalid');
+      }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.beneficiaryContactEmail!)) {
+        throw new BadRequestException('A valid beneficiary contact email is required');
+      }
+      if (input.beneficiaryAcceptsUsBank === false && !input.bankCountry?.trim()) {
+        throw new BadRequestException('Bank country is required when the beneficiary does not accept a US bank');
+      }
+      if (input.instrumentPurpose === 'Other' && !input.instrumentPurposeOther?.trim()) {
+        throw new BadRequestException('Other instrument purpose is required');
+      }
+      if (input.issueType === 'amendment' && !input.amendmentInstrumentNumber?.trim()) {
+        throw new BadRequestException('LC/BG number is required for an amendment');
+      }
+      const amendmentAmounts = [input.amendmentAmountFrom, input.amendmentAmountTo].filter((value): value is number => value !== null && value !== undefined);
+      if (amendmentAmounts.some((value) => !Number.isFinite(value) || value < 0)) {
+        throw new BadRequestException('Amendment amounts must be zero or greater');
+      }
+      if (input.issueType === 'amendment' && amendmentAmounts.length === 0 && !input.amendmentExpiryFrom && !input.amendmentExpiryTo && !input.amendmentOther?.trim()) {
+        throw new BadRequestException('At least one amendment change must be provided');
+      }
+      if (input.deliveryMethod === 'other' && !input.deliveryInstructions?.trim()) {
+        throw new BadRequestException('Other delivery instructions are required');
+      }
+      return;
+    }
     const required = [
       'dateSubmitted',
       'proposalContractReference',
@@ -1326,6 +1434,30 @@ export class AppController {
       proposalContractReference: input.proposalContractReference.trim(),
       currentContractStatus: input.currentContractStatus.trim(),
       beneficiaryAddress: input.beneficiaryAddress.trim(),
+      beneficiaryAcceptsUsBank: input.beneficiaryAcceptsUsBank ?? null,
+      bankCountry: optionalText(input.bankCountry),
+      instrumentLanguage: optionalText(input.instrumentLanguage),
+      issueType: optionalText(input.issueType),
+      amendmentInstrumentNumber: optionalText(input.amendmentInstrumentNumber),
+      exactIssueDate: input.exactIssueDate || null,
+      expiryDate: input.expiryDate || null,
+      instrumentPurpose: optionalText(input.instrumentPurpose),
+      instrumentPurposeOther: optionalText(input.instrumentPurposeOther),
+      beneficiaryContactName: optionalText(input.beneficiaryContactName),
+      beneficiaryContactEmail: optionalText(input.beneficiaryContactEmail),
+      beneficiaryContactPhone: optionalText(input.beneficiaryContactPhone),
+      companyBillingNumber: optionalText(input.companyBillingNumber),
+      contractProjectTitle: optionalText(input.contractProjectTitle),
+      contractDate: input.contractDate || null,
+      contractValue: input.contractValue ?? null,
+      tenderContractNumber: optionalText(input.tenderContractNumber),
+      contractDescription: optionalText(input.contractDescription),
+      amendmentAmountFrom: input.amendmentAmountFrom ?? null,
+      amendmentAmountTo: input.amendmentAmountTo ?? null,
+      amendmentExpiryFrom: input.amendmentExpiryFrom || null,
+      amendmentExpiryTo: input.amendmentExpiryTo || null,
+      amendmentOther: optionalText(input.amendmentOther),
+      deliveryMethod: optionalText(input.deliveryMethod),
       pcgLanguage: input.pcgLanguage.trim(),
       maximumLiabilityMode: input.maximumLiabilityMode,
       maximumLiabilityPercent: optionalText(input.maximumLiabilityPercent),
@@ -1354,5 +1486,9 @@ export class AppController {
 
   private entityValues(values: string[]) {
     return [...new Set(values.map((value) => value.trim()))];
+  }
+
+  private isBankInstrument(instrumentType: string) {
+    return ['Standby Letter of Credit', 'Bank Guarantee', 'Documentary Letter of Credit'].includes(instrumentType);
   }
 }

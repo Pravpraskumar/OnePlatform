@@ -37,6 +37,37 @@ test('replaces unsupported standard-font characters without failing generation',
   assert.equal(generated.subarray(0, 5).toString(), '%PDF-');
 });
 
+test('generates a bank-instrument request PDF with instrument-specific metadata', async () => {
+  const data = requestData();
+  data.instrumentType = 'Bank Guarantee';
+  data.details = {
+    ...data.details,
+    beneficiaryAcceptsUsBank: true,
+    instrumentLanguage: 'standard',
+    issueType: 'new',
+    exactIssueDate: '2026-10-01',
+    expiryDate: '2027-10-01',
+    instrumentPurpose: 'Performance Bond',
+    beneficiaryContactName: 'Bailey Beneficiary',
+    beneficiaryContactEmail: 'bailey@example.test',
+    beneficiaryContactPhone: '+1 555 0100',
+    companyBillingNumber: 'BILL-100',
+    contractProjectTitle: 'Metro extension',
+    contractDate: '2026-09-01',
+    contractValue: 5000000,
+    tenderContractNumber: 'RFP-2026-784',
+    contractDescription: 'Performance security for the metro extension.',
+    deliveryMethod: 'beneficiaryAddress',
+  };
+
+  const generated = await generatePcgRequestForm(data);
+  const pdf = await PDFDocument.load(generated);
+
+  assert.equal(pdf.getTitle(), 'PCG-2026-00125 - Bank Guarantee Request');
+  assert.ok(pdf.getPageCount() >= 1);
+  assert.equal(generated.subarray(0, 5).toString(), '%PDF-');
+});
+
 function requestData(): PcgRequestFormData {
   return {
     requestNumber: 'PCG-2026-00125',

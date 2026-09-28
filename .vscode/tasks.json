@@ -317,6 +317,38 @@
 			"isBackground": false,
 			"problemMatcher": [],
 			"group": "test"
+		},
+		{
+			"label": "Test CreditGuard attachment refresh",
+			"type": "shell",
+			"command": "C:\\Program Files\\nodejs\\npx.cmd",
+			"args": [
+				"playwright",
+				"test",
+				"request-form.spec.ts",
+				"--grep",
+				"uploaded document remains visible",
+				"--output=test-results\\attachment-refresh"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "Test CreditGuard reports approved summary",
+			"type": "shell",
+			"command": "C:\\Program Files\\nodejs\\npx.cmd",
+			"args": [
+				"playwright",
+				"test",
+				"core-flows.spec.ts",
+				"--grep",
+				"request reports aggregate the current portfolio",
+				"--output=test-results\\creditguard-reports-approved"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
 		}
 	]
 }

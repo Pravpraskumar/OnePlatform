@@ -56,6 +56,109 @@ test('new request captures initial data only and saves a Draft', async ({ page }
   await expect(page.getByRole('status').filter({ hasText: 'Draft request saved successfully.' })).toBeVisible();
 });
 
+test('bank guarantee shows and saves bank-instrument fields instead of PCG fields', async ({ page }) => {
+  await page.route('**/business-entities*', (route) => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify([{ id: 'entity-1', jobCodeEntity: '100', segment1: 'US', legalEntityName: 'Designer Energy LLC' }]),
+  }));
+  await page.goto('/app/product/CreditGuard/requests/new');
+  await page.getByLabel('Instrument type').selectOption('Bank Guarantee');
+
+  await expect(page.getByLabel('Instrument Value')).toBeVisible();
+  await expect(page.getByLabel('PCG Language')).toHaveCount(0);
+  await expect(page.getByText('Parent company offering guarantee', { exact: true })).toHaveCount(0);
+  await page.getByLabel('Date Instrument Required').fill('2026-12-31');
+  await page.getByLabel('Will the beneficiary accept an instrument from a US bank?').selectOption('no');
+  await expect(page.getByLabel('Country where the issuing bank must be located')).toBeVisible();
+  await page.getByLabel('Country where the issuing bank must be located').fill('United Kingdom');
+  await page.getByLabel('Instrument language').selectOption('standard');
+  await page.getByLabel('Issue type').selectOption('new');
+  await page.getByLabel('Instrument Value').fill('750000');
+  await page.getByLabel('Exact Issue Date Needed').fill('2026-11-01');
+  await page.getByLabel('Expiry Date').fill('2027-11-01');
+  await page.getByLabel('Purpose of instrument').selectOption('Other');
+  await page.getByLabel('Other purpose').fill('Warranty security');
+  await page.getByLabel('Beneficiary full legal name').fill('Example Bank Beneficiary');
+  await page.getByLabel('Beneficiary full address').fill('100 Finance Street, London');
+  await page.getByLabel('Beneficiary contact name').fill('Bailey Beneficiary');
+  await page.getByLabel('Beneficiary contact email').fill('bailey@example.test');
+  await page.getByLabel('Beneficiary contact phone').fill('+44 20 7946 0000');
+  await page.getByRole('button', { name: 'Select a business entity' }).click();
+  await page.getByRole('button', { name: /100 - Designer Energy LLC/ }).click();
+  await page.getByLabel('Company Billing Number').fill('BILL-100');
+  await page.getByLabel('Contract/Project Title').fill('Offshore development');
+  await page.getByLabel('Contract Date').fill('2026-10-01');
+  await page.getByLabel('Contract Value').fill('5000000');
+  await page.getByLabel('Tender/Contract Number').fill('TENDER-100');
+  await page.getByLabel('Contract Description').fill('Performance security for the offshore development.');
+  await page.getByLabel('Delivery method').selectOption('beneficiaryAddress');
+
+  const createRequest = page.waitForRequest((request) => request.method() === 'POST' && new URL(request.url()).pathname.endsWith('/requests'));
+  await page.getByRole('button', { name: 'Save Draft' }).click();
+
+  expect((await createRequest).postDataJSON()).toMatchObject({
+    instrumentType: 'Bank Guarantee',
+    amount: 750000,
+    dueDate: '2026-12-31',
+    details: {
+      beneficiaryAcceptsUsBank: false,
+      bankCountry: 'United Kingdom',
+      instrumentLanguage: 'standard',
+      issueType: 'new',
+      instrumentPurpose: 'Other',
+      instrumentPurposeOther: 'Warranty security',
+      contractValue: 5000000,
+      tenderContractNumber: 'TENDER-100',
+      deliveryMethod: 'beneficiaryAddress',
+    },
+  });
+});
+
+test('MIL selects McDermott International Limited as a read-only parent entity', async ({ page }) => {
+  const milEntity = { id: 'entity-mil', jobCodeEntity: '0001', segment1: 'GB', legalEntityName: 'McDermott International Limited' };
+  const localEntity = { id: 'entity-1', jobCodeEntity: '100', segment1: 'US', legalEntityName: 'Designer Energy LLC' };
+  await page.route('**/business-entities*', (route) => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify([milEntity, localEntity]),
+  }));
+  await page.goto('/app/product/CreditGuard/requests/new');
+  await page.getByLabel('Instrument type').selectOption('Parent Company Guarantee');
+  await page.getByRole('button', { name: /^MIL/ }).click();
+
+  const parentCompany = page.locator('input[value="0001 - McDermott International Limited"]');
+  await expect(parentCompany).toBeVisible();
+  await expect(parentCompany).toHaveAttribute('readonly', '');
+  await expect(page.getByText('Enable Multiple Entities selection')).toBeVisible();
+  await expect(page.getByLabel('Enable Multiple Entities selection')).toBeDisabled();
+
+  await page.getByLabel('Date required by').fill('2026-12-31');
+  for (let index = 0; index < 2; index += 1) {
+    await page.getByRole('button', { name: 'Select a business entity', exact: true }).first().click();
+    await page.getByRole('button', { name: /100 - Designer Energy LLC/ }).click();
+  }
+  await page.getByLabel('Proposal/contract reference number and name').fill('PCG-MIL-001');
+  await page.getByRole('button', { name: 'Award' }).click();
+  await page.getByLabel('Beneficiary name').fill('Example Beneficiary');
+  await page.getByLabel('Beneficiary address').fill('100 Example Street, Houston, TX 77002');
+  await page.getByLabel(/^Contract value/).fill('500000');
+  await page.getByLabel('Background on requirement for guarantee').fill('Required for the awarded contract.');
+  await page.getByLabel('Brief description of project/undertaking').fill('Example offshore project.');
+
+  const createRequest = page.waitForRequest((request) => request.method() === 'POST' && new URL(request.url()).pathname.endsWith('/requests'));
+  await page.getByRole('button', { name: 'Save Draft' }).click();
+
+  expect((await createRequest).postDataJSON()).toMatchObject({
+    instrumentType: 'Parent Company Guarantee',
+    details: {
+      parentEntityType: 'mil',
+      enableMultiEntity: false,
+      parentCompanyOfferingGuarantee: [milEntity.id],
+    },
+  });
+});
+
 test('Under Review request is read-only except for attachments', async ({ page }) => {
   await page.goto('/app/product/CreditGuard/requests/request-1/edit');
 
@@ -74,6 +177,52 @@ test('Under Review request is read-only except for attachments', async ({ page }
   await expect(page.getByText('guarantee.pdf')).toBeVisible();
   await expect(page.getByTitle('Open guarantee.pdf')).toBeVisible();
   await expect(page.getByTitle('Delete guarantee.pdf')).toBeVisible();
+});
+
+test('uploaded document remains visible without refreshing the edit request', async ({ page }) => {
+  let uploaded = false;
+  await page.route('**/business-entities*', (route) => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify([{ id: 'entity-1', jobCodeEntity: '100', segment1: 'US', legalEntityName: 'Designer Energy LLC' }]),
+  }));
+  await page.route('**/requests/request-1*', (route) => {
+    const url = new URL(route.request().url());
+    if (url.pathname.endsWith('/requests/request-1') && route.request().method() === 'GET') {
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ ...creditGuardRequest, details: creditGuardDetails }),
+      });
+    }
+    return route.fallback();
+  });
+  await page.route('**/requests/request-1/attachments*', (route) => {
+    if (route.request().method() === 'POST') {
+      uploaded = true;
+      return route.fulfill({ status: 201, contentType: 'application/json', body: '{}' });
+    }
+    return route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(uploaded ? [{ ...creditGuardAttachment, id: 'attachment-uploaded', originalFileName: 'new-guarantee.pdf' }] : []),
+    });
+  });
+  await page.goto('/app/product/CreditGuard/requests/request-1/edit');
+
+  await expect(page.getByText('No documents attached.')).toBeVisible();
+  const fileChooser = page.waitForEvent('filechooser');
+  await page.getByRole('button', { name: 'Attach documents' }).click();
+  await (await fileChooser).setFiles({
+    name: 'new-guarantee.pdf',
+    mimeType: 'application/pdf',
+    buffer: Buffer.from('%PDF-1.7 test document'),
+  });
+
+  await expect(page.getByRole('heading', { name: 'Edit Company Guarantee Request' })).toBeVisible();
+  await expect(page.getByText('new-guarantee.pdf')).toBeVisible();
+  await expect(page.getByRole('status').filter({ hasText: 'Attachment uploaded successfully.' })).toBeVisible();
+  await expect.poll(() => page.locator('.fixed.inset-0').evaluate((shell) => shell.scrollTop)).toBe(0);
 });
 
 test('requestor reassigns an Under Review request and notifies both reviewers', async ({ page }) => {

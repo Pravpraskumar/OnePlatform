@@ -18,6 +18,7 @@ interface CreditGuardRequest {
   projectId: string | null;
   requestNumber: string;
   instrumentType: string;
+  parentEntityType: 'localEntity' | 'mil' | null;
   applicant: string;
   beneficiary: string;
   amount: number;
@@ -31,7 +32,7 @@ interface CreditGuardRequest {
   updatedAt: string;
 }
 
-type RequestDraft = Omit<CreditGuardRequest, 'id' | 'createdAt' | 'updatedAt'>;
+type RequestDraft = Omit<CreditGuardRequest, 'id' | 'createdAt' | 'updatedAt' | 'parentEntityType'>;
 type ColumnKey = keyof Pick<CreditGuardRequest, 'requestNumber' | 'instrumentType' | 'beneficiary' | 'amount' | 'currency' | 'status' | 'requestedBy' | 'dueDate' | 'nextReviewDate' | 'notes' | 'updatedAt'>;
 
 const columns: { key: ColumnKey; label: string; minWidth: string }[] = [
@@ -49,6 +50,12 @@ const columns: { key: ColumnKey; label: string; minWidth: string }[] = [
 ];
 
 const inputClass = 'w-full rounded border border-slate-300 bg-white px-2 py-1.5 text-sm outline-none focus:border-brand';
+
+function instrumentLabel(request: CreditGuardRequest) {
+  return request.instrumentType === 'Parent Company Guarantee' && request.parentEntityType === 'mil'
+    ? `${request.instrumentType} - MIL`
+    : request.instrumentType;
+}
 
 async function creditGuardRequest<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`/creditguard-api${path}`, {
@@ -135,11 +142,12 @@ export function CreditGuardRequestsPage() {
     const filtered = rows.filter((row) => columns.every(({ key }) => {
       const filter = filters[key]?.trim().toLowerCase();
       if (!filter) return true;
-      return String(row[key] ?? '').toLowerCase().includes(filter);
+      const value = key === 'instrumentType' ? instrumentLabel(row) : row[key];
+      return String(value ?? '').toLowerCase().includes(filter);
     }));
     return [...filtered].sort((left, right) => {
-      const leftValue = left[sort.key] ?? '';
-      const rightValue = right[sort.key] ?? '';
+      const leftValue = sort.key === 'instrumentType' ? instrumentLabel(left) : left[sort.key] ?? '';
+      const rightValue = sort.key === 'instrumentType' ? instrumentLabel(right) : right[sort.key] ?? '';
       const comparison = typeof leftValue === 'number' && typeof rightValue === 'number'
         ? leftValue - rightValue
         : String(leftValue).localeCompare(String(rightValue));
@@ -161,7 +169,7 @@ export function CreditGuardRequestsPage() {
   };
 
   const startEdit = (row: CreditGuardRequest) => {
-    const { id: _id, createdAt: _createdAt, updatedAt: _updatedAt, ...values } = row;
+    const { id: _id, createdAt: _createdAt, updatedAt: _updatedAt, parentEntityType: _parentEntityType, ...values } = row;
     setEditingId(row.id);
     setDraft(values);
   };
@@ -209,6 +217,7 @@ export function CreditGuardRequestsPage() {
       return <input aria-label={`Notes for ${row.requestNumber}`} className={inputClass} value={draft.notes ?? ''} onChange={(event) => setDraft({ ...draft, notes: event.target.value || null })} />;
     }
     if (key === 'requestNumber') return <Link to={requestEditUrl(row)} className="font-medium text-brand underline-offset-2 hover:underline">{row.requestNumber}</Link>;
+    if (key === 'instrumentType') return instrumentLabel(row);
     if (key === 'amount') return new Intl.NumberFormat(undefined, { style: 'currency', currency: row.currency }).format(row.amount);
     if (key === 'updatedAt') return new Date(row.updatedAt).toLocaleString();
     if (key === 'status') return <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-medium">{row.status}</span>;

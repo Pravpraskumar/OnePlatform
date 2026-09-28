@@ -23,6 +23,30 @@ export interface PcgRequestFormData {
     proposalContractReference: string;
     currentContractStatus: string;
     beneficiaryAddress: string | null;
+    beneficiaryAcceptsUsBank?: boolean | null;
+    bankCountry?: string | null;
+    instrumentLanguage?: string | null;
+    issueType?: string | null;
+    amendmentInstrumentNumber?: string | null;
+    exactIssueDate?: string | null;
+    expiryDate?: string | null;
+    instrumentPurpose?: string | null;
+    instrumentPurposeOther?: string | null;
+    beneficiaryContactName?: string | null;
+    beneficiaryContactEmail?: string | null;
+    beneficiaryContactPhone?: string | null;
+    companyBillingNumber?: string | null;
+    contractProjectTitle?: string | null;
+    contractDate?: string | null;
+    contractValue?: number | null;
+    tenderContractNumber?: string | null;
+    contractDescription?: string | null;
+    amendmentAmountFrom?: number | null;
+    amendmentAmountTo?: number | null;
+    amendmentExpiryFrom?: string | null;
+    amendmentExpiryTo?: string | null;
+    amendmentOther?: string | null;
+    deliveryMethod?: string | null;
     pcgLanguage: string;
     maximumLiabilityMode: 'number' | 'text';
     maximumLiabilityPercent: string | null;
@@ -70,6 +94,17 @@ export async function generatePcgRequestForm(data: PcgRequestFormData): Promise<
   const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
   const logo = await pdf.embedPng(readFileSync(join(__dirname, '..', 'assets', 'mcdermott-logo.png')));
   const pages: PDFPage[] = [];
+  if (isBankInstrument(data.instrumentType)) {
+    drawBankInstrumentPages(pdf, pages, regular, bold, logo, data);
+    pages.forEach((pdfPage, index) => drawFooter(pdfPage, regular, data.requestNumber, index + 1, pages.length));
+    pdf.setTitle(`${data.requestNumber} - ${data.instrumentType} Request`);
+    pdf.setSubject(`${data.instrumentType} request for ${data.beneficiary}`);
+    pdf.setAuthor('McDermott CreditGuard');
+    pdf.setProducer('Designer Platform CreditGuard');
+    pdf.setCreationDate(new Date());
+    pdf.setModificationDate(new Date());
+    return Buffer.from(await pdf.save({ useObjectStreams: false }));
+  }
   let page = addPage(pdf, pages, bold, logo, data);
   let y = 713;
 
@@ -137,6 +172,57 @@ export async function generatePcgRequestForm(data: PcgRequestFormData): Promise<
   pdf.setCreationDate(new Date());
   pdf.setModificationDate(new Date());
   return Buffer.from(await pdf.save({ useObjectStreams: false }));
+}
+
+function drawBankInstrumentPages(pdf: PDFDocument, pages: PDFPage[], regular: PDFFont, bold: PDFFont, logo: PDFImage, data: PcgRequestFormData) {
+  const details = data.details;
+  const purpose = details.instrumentPurpose === 'Other' ? details.instrumentPurposeOther : details.instrumentPurpose;
+  const rows: [NarrativeField, NarrativeField?][] = [
+    [{ label: 'Date of Request', value: formatDate(details.dateSubmitted) }, { label: 'Date Instrument Required', value: formatDate(data.dueDate) }],
+    [{ label: 'Beneficiary accepts a US bank', value: details.beneficiaryAcceptsUsBank ? 'Yes' : 'No' }, { label: 'Required bank country', value: details.bankCountry }],
+    [{ label: 'Instrument language', value: details.instrumentLanguage === 'beneficiary' ? 'Beneficiary-specific language' : 'Standard company language' }, { label: 'Issue type', value: details.issueType === 'amendment' ? 'Amendment' : 'New issuance' }],
+    [{ label: 'Existing LC / BG number', value: details.amendmentInstrumentNumber }, { label: 'Currency denomination', value: data.currency }],
+    [{ label: 'Instrument Value', value: `${data.currency} ${formatAmount(data.amount)}` }, { label: 'Exact Issue Date Needed', value: formatDate(details.exactIssueDate) }],
+    [{ label: 'Expiry Date', value: formatDate(details.expiryDate) }, { label: 'Purpose of instrument', value: purpose }],
+    [{ label: 'Beneficiary full legal name', value: data.beneficiary }, { label: 'Beneficiary contact name', value: details.beneficiaryContactName }],
+    [{ label: 'Beneficiary full address', value: details.beneficiaryAddress }],
+    [{ label: 'Beneficiary contact email', value: details.beneficiaryContactEmail }, { label: 'Beneficiary contact phone', value: details.beneficiaryContactPhone }],
+    [{ label: 'LC / BG Issued on Behalf of', value: details.requestingEntity.join('; ') }, { label: 'Company Billing Number', value: details.companyBillingNumber }],
+    [{ label: 'Contract / Project Title', value: details.contractProjectTitle }, { label: 'Contract Date', value: formatDate(details.contractDate) }],
+    [{ label: 'Contract Value', value: details.contractValue === null || details.contractValue === undefined ? null : `${data.currency} ${formatAmount(details.contractValue)}` }, { label: 'Tender / Contract Number', value: details.tenderContractNumber }],
+    [{ label: 'Contract Description', value: details.contractDescription }],
+  ];
+  if (details.issueType === 'amendment') {
+    rows.push(
+      [{ label: 'Amendment Amount From', value: details.amendmentAmountFrom }, { label: 'Amendment Amount To', value: details.amendmentAmountTo }],
+      [{ label: 'Amendment Expiration Date From', value: formatDate(details.amendmentExpiryFrom) }, { label: 'Amendment Expiration Date To', value: formatDate(details.amendmentExpiryTo) }],
+      [{ label: 'Other Amendment', value: details.amendmentOther }],
+    );
+  }
+  rows.push(
+    [{ label: 'Delivery Method', value: details.deliveryMethod === 'beneficiaryAddress' ? 'Deliver to beneficiary address' : 'Other' }],
+    [{ label: 'Other Delivery Instructions / Contact Details', value: details.deliveryInstructions }],
+    [{ label: 'Additional Notes', value: data.notes }, { label: 'Requested By', value: data.requestedBy }],
+  );
+
+  let page = addPage(pdf, pages, bold, logo, data, 'Letter of Credit / Bank Guarantee details');
+  let y = 713;
+  const half = contentWidth / 2;
+  rows.forEach(([left, right]) => {
+    const width = right ? half : contentWidth;
+    const height = Math.max(45, Math.min(78, requiredCellHeight(regular, left.value, width - 14), right ? requiredCellHeight(regular, right.value, width - 14) : 45));
+    if (y - height < 54) {
+      page = addPage(pdf, pages, bold, logo, data, 'Letter of Credit / Bank Guarantee details continued');
+      y = 713;
+    }
+    drawFormCell(page, regular, bold, { x: margin, y, width, height, ...left });
+    if (right) drawFormCell(page, regular, bold, { x: margin + half, y, width: half, height, ...right });
+    y -= height;
+  });
+}
+
+function isBankInstrument(instrumentType: string) {
+  return ['Standby Letter of Credit', 'Bank Guarantee', 'Documentary Letter of Credit'].includes(instrumentType);
 }
 
 function drawNarrativeGrid(page: PDFPage, regular: PDFFont, bold: PDFFont, narratives: NarrativeField[], y: number, heights: number[]) {
