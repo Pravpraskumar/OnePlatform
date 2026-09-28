@@ -228,6 +228,8 @@ CreditGuard forwards the generated payload and selected PDFs to the authenticate
 
 Reports derive, in the browser, total/open/approved request counts, counts by status and instrument, amount totals grouped by currency, active guarantees grouped by guaranteeing entity, and upcoming reviews across four calendar quarters. Instrument counts split MIL Parent Company Guarantees into `Parent Company Guarantee - MIL`; other Parent Company Guarantees retain the base instrument label.
 
+For approval refreshes, workflow status remains unchanged only while one or more assigned recipient is pending or rejected. When the complete normalized recipient set is approved, CreditGuard atomically changes the request from `Sent for Approval` to `Approved` in the same transaction that records recipient actions. The Approval Status screen reflects this transition immediately and remains available from the Requests page for completed approvals.
+
 ### Email templates
 
 Global Administrators manage product event templates through `GET /notifications/email-templates` and `PUT /notifications/email-templates/:id`. Subjects and bodies accept `{{variableName}}` placeholders from an event-specific allowlist. Updates reject unknown placeholders, and delivery fails explicitly when a runtime value is unavailable. Seeded CreditGuard events are `request-review` and `review-reassignment`; repeat seeds add missing defaults without overwriting administrator edits.

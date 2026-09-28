@@ -109,16 +109,16 @@ test('refreshes the Signit envelope and recipient signing status', async ({ page
     approvalLink: 'https://signit.example/sign/recipient-1',
   };
 
-  await page.route('**/creditguard-api/requests/request-1?*', (route) => route.fulfill({ contentType: 'application/json', body: JSON.stringify(sentRequest) }));
-  await page.route('**/creditguard-api/requests/request-1/attachments?*', (route) => route.fulfill({ contentType: 'application/json', body: JSON.stringify([creditGuardAttachment]) }));
-  await page.route('**/creditguard-api/requests/request-1/approver-assignments?*', (route) => route.fulfill({
+  await page.route('**/requests/request-1?*', (route) => route.fulfill({ contentType: 'application/json', body: JSON.stringify(sentRequest) }));
+  await page.route('**/requests/request-1/attachments?*', (route) => route.fulfill({ contentType: 'application/json', body: JSON.stringify([creditGuardAttachment]) }));
+  await page.route('**/requests/request-1/approver-assignments?*', (route) => route.fulfill({
     contentType: 'application/json',
     body: JSON.stringify([{ ...assignment, approvalStatus: refreshed ? 'approved' : 'pending', actionedDate: refreshed ? signedAt : null }]),
   }));
-  await page.route('**/creditguard-api/requests/request-1/refresh-approval', (route) => {
+  await page.route('**/requests/request-1/refresh-approval', (route) => {
     refreshBody = route.request().postDataJSON();
     refreshed = true;
-    return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ title: 'Service Agreement', status: 'COMPLETED' }) });
+    return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ title: 'Service Agreement', status: 'COMPLETED', requestStatus: 'Approved' }) });
   });
 
   await page.goto('/app/product/CreditGuard/requests/request-1/approval');
@@ -128,6 +128,9 @@ test('refreshes the Signit envelope and recipient signing status', async ({ page
   await expect.poll(() => refreshBody).toEqual({ orgId: 'org-1', productId: 'product-cg' });
   await expect(page.getByText('COMPLETED', { exact: true })).toBeVisible();
   await expect(page.getByText('approved', { exact: true })).toBeVisible();
+  await expect(page.getByText('CG-1001 · Approved', { exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Approval Status' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Refresh' })).toHaveCount(0);
   await expect(page.getByText(new Date(signedAt).toLocaleString(), { exact: true })).toBeVisible();
 });
 

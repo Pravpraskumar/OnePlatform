@@ -242,7 +242,7 @@ export function CreditGuardRequestsPage() {
           <div className="mt-6 flex flex-wrap items-center gap-3">
             <Button onClick={startNew} disabled={!!editingId}><Plus size={16} />New request</Button>
             <Button variant="secondary" disabled={selectedRequest?.status !== 'Reviewed'} onClick={() => assignApproversUrl && navigate(assignApproversUrl)}><UserCheck size={16} />Assign Approvers</Button>
-            {selectedRequest && ['Reviewed', 'Sent for Approval'].includes(selectedRequest.status) && (
+            {selectedRequest && ['Reviewed', 'Sent for Approval', 'Approved', 'Rejected'].includes(selectedRequest.status) && (
               <Button variant="secondary" onClick={() => navigate(approvalUrl)}>
                 <ClipboardCheck size={16} />{selectedRequest.status === 'Reviewed' ? 'Initiate Approval' : 'Approval Status'}
               </Button>

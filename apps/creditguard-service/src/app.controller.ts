@@ -708,9 +708,19 @@ export class AppController {
           .set({ approvalStatus: recipient.approvalStatus, actionedDate: recipient.actionedDate })
           .where(eq(requestApprovers.id, assignment.id));
       }
+      const requestStatus = [...recipientStatuses.values()].every(({ approvalStatus }) => approvalStatus === 'approved')
+        ? 'Approved'
+        : target.status;
+      if (requestStatus !== target.status) {
+        await tx
+          .update(requests)
+          .set({ status: requestStatus, updatedAt: new Date() })
+          .where(and(eq(requests.id, id), eq(requests.orgId, input.orgId), eq(requests.status, 'Sent for Approval')));
+      }
       return {
         title: typeof result.title === 'string' ? result.title : null,
         status: typeof result.status === 'string' ? result.status : null,
+        requestStatus,
       };
     });
   }
