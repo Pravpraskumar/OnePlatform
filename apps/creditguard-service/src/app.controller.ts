@@ -239,7 +239,7 @@ export class AppController {
     return this.db.transaction(async (tx) => {
       const [current] = await tx.select({ status: requests.status }).from(requests).where(and(eq(requests.id, id), eq(requests.orgId, input.orgId)));
       if (!current) throw new NotFoundException('Request not found');
-      if (['Under Review', 'Reviewed', 'Sent for Approval'].includes(current.status)) throw new ConflictException('Requests in review or approval are read-only');
+      if (['Under Review', 'Reviewed', 'Sent for Approval', 'Approved'].includes(current.status)) throw new ConflictException('Requests in review or approval are read-only');
       if (input.status === 'Under Review') {
         const [attachment] = await tx
           .select({ id: requestAttachments.id })
@@ -763,6 +763,9 @@ export class AppController {
         || (nextStatus && target.status !== 'Sent for Approval' && target.status !== nextStatus)) {
         throw new ConflictException('The request cannot accept this Signit status update');
       }
+      if (target.status === 'Approved' && nextStatus === 'Approved') {
+        return { success: true, requestId: target.id, status: target.status };
+      }
       const assignments = await tx
         .select({ id: requestApprovers.id, approverEmail: approvers.email })
         .from(requestApprovers)
@@ -857,7 +860,7 @@ export class AppController {
   async deleteRequest(@Param('id') id: string, @Query('orgId') orgId?: string) {
     if (!orgId) throw new BadRequestException('orgId is required');
     const target = await this.requireRequest(id, orgId);
-    if (['Under Review', 'Reviewed', 'Sent for Approval'].includes(target.status)) {
+    if (['Under Review', 'Reviewed', 'Sent for Approval', 'Approved'].includes(target.status)) {
       throw new ConflictException('Requests in review or approval cannot be deleted');
     }
     const attachments = await this.db
@@ -1029,7 +1032,7 @@ export class AppController {
     @UploadedFile() file?: UploadedDocument,
   ) {
     const target = await this.requireRequest(id, orgId);
-    if (['Reviewed', 'Sent for Approval'].includes(target.status)) throw new ConflictException('Attachments are read-only after review is complete');
+    if (['Reviewed', 'Sent for Approval', 'Approved'].includes(target.status)) throw new ConflictException('Attachments are read-only after review is complete');
     if (!uploadedBy?.trim()) throw new BadRequestException('uploadedBy is required');
     if (!file) throw new BadRequestException('A PDF or DOCX file is required');
     this.validateDocument(file);
@@ -1050,29 +1053,40 @@ export class AppController {
     const sha256 = createHash('sha256').update(file.buffer).digest('hex');
     await this.documentStorage.put(storageKey, file.buffer, file.mimetype);
     try {
-      const [created] = await this.db
-        .insert(requestAttachments)
-        .values({
-          id: attachmentId,
-          requestId: id,
-          orgId: orgId!,
-          originalFileName,
-          mimeType: file.mimetype,
-          fileSizeBytes: file.size,
-          storageKey,
-          sha256,
-          uploadedBy: uploadedBy.trim(),
-        })
-        .returning({
-          id: requestAttachments.id,
-          originalFileName: requestAttachments.originalFileName,
-          mimeType: requestAttachments.mimeType,
-          fileSizeBytes: requestAttachments.fileSizeBytes,
-          sha256: requestAttachments.sha256,
-          uploadedBy: requestAttachments.uploadedBy,
-          createdAt: requestAttachments.createdAt,
-        });
-      return created;
+      return await this.db.transaction(async (tx) => {
+        const [lockedRequest] = await tx
+          .select({ status: requests.status })
+          .from(requests)
+          .where(and(eq(requests.id, id), eq(requests.orgId, orgId!)))
+          .for('update');
+        if (!lockedRequest) throw new NotFoundException('Request not found');
+        if (['Reviewed', 'Sent for Approval', 'Approved'].includes(lockedRequest.status)) {
+          throw new ConflictException('Attachments are read-only after review is complete');
+        }
+        const [created] = await tx
+          .insert(requestAttachments)
+          .values({
+            id: attachmentId,
+            requestId: id,
+            orgId: orgId!,
+            originalFileName,
+            mimeType: file.mimetype,
+            fileSizeBytes: file.size,
+            storageKey,
+            sha256,
+            uploadedBy: uploadedBy.trim(),
+          })
+          .returning({
+            id: requestAttachments.id,
+            originalFileName: requestAttachments.originalFileName,
+            mimeType: requestAttachments.mimeType,
+            fileSizeBytes: requestAttachments.fileSizeBytes,
+            sha256: requestAttachments.sha256,
+            uploadedBy: requestAttachments.uploadedBy,
+            createdAt: requestAttachments.createdAt,
+          });
+        return created;
+      });
     } catch (error) {
       await this.documentStorage.delete(storageKey);
       throw error;
@@ -1104,14 +1118,28 @@ export class AppController {
     @Param('attachmentId') attachmentId: string,
     @Query('orgId') orgId?: string,
   ) {
-    const target = await this.requireRequest(id, orgId);
-    if (['Reviewed', 'Sent for Approval'].includes(target.status)) throw new ConflictException('Attachments are read-only after review is complete');
-    const attachment = await this.requireAttachment(id, attachmentId, orgId);
-    await this.documentStorage.delete(attachment.storageKey);
-    await this.db
-      .delete(requestAttachments)
-      .where(and(eq(requestAttachments.id, attachmentId), eq(requestAttachments.requestId, id), eq(requestAttachments.orgId, orgId!)));
-    return { ok: true };
+    if (!orgId?.trim()) throw new BadRequestException('orgId is required');
+    return this.db.transaction(async (tx) => {
+      const [target] = await tx
+        .select({ status: requests.status })
+        .from(requests)
+        .where(and(eq(requests.id, id), eq(requests.orgId, orgId)))
+        .for('update');
+      if (!target) throw new NotFoundException('Request not found');
+      if (['Reviewed', 'Sent for Approval', 'Approved'].includes(target.status)) {
+        throw new ConflictException('Attachments are read-only after review is complete');
+      }
+      const [attachment] = await tx
+        .select()
+        .from(requestAttachments)
+        .where(and(eq(requestAttachments.id, attachmentId), eq(requestAttachments.requestId, id), eq(requestAttachments.orgId, orgId)));
+      if (!attachment) throw new NotFoundException('Attachment not found');
+      await this.documentStorage.delete(attachment.storageKey);
+      await tx
+        .delete(requestAttachments)
+        .where(and(eq(requestAttachments.id, attachmentId), eq(requestAttachments.requestId, id), eq(requestAttachments.orgId, orgId)));
+      return { ok: true };
+    });
   }
 
   @Get('business-entities')

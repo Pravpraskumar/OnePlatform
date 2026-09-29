@@ -10,6 +10,99 @@ import { decryptSecret, encryptSecret } from '../common/crypto';
 
 export type EntityStatus = 'active' | 'suspended' | 'pending';
 
+interface SignitWebhookInput {
+  event?: unknown;
+  payload?: unknown;
+  legacyEnvelopeId?: unknown;
+}
+
+export function parseSignitWebhookInput(input: SignitWebhookInput) {
+  if (input.event !== undefined && !['DOCUMENT_SIGNED', 'DOCUMENT_COMPLETED'].includes(String(input.event))) {
+    return { ignored: true, event: input.event, envelopeId: null } as const;
+  }
+  if (input.event === undefined) {
+    const envelopeId = typeof input.legacyEnvelopeId === 'string' ? input.legacyEnvelopeId.trim() : '';
+    return { ignored: false, event: undefined, envelopeId, envelope: null } as const;
+  }
+  if (!input.payload || typeof input.payload !== 'object' || Array.isArray(input.payload)) {
+    throw new BadRequestException('Signit webhook payload is required');
+  }
+  const payload = input.payload as {
+    id?: unknown;
+    envelopeId?: unknown;
+    status?: unknown;
+    title?: unknown;
+    source?: unknown;
+    completedAt?: unknown;
+    recipients?: unknown;
+  };
+  if (!Number.isSafeInteger(payload.id) || Number(payload.id) <= 0
+    || typeof payload.envelopeId !== 'string' || !payload.envelopeId.trim() || payload.envelopeId.length > 500
+    || typeof payload.status !== 'string' || !payload.status.trim() || payload.status.length > 100
+    || typeof payload.title !== 'string' || !payload.title.trim() || payload.title.length > 500
+    || payload.source !== 'DOCUMENT' || !Array.isArray(payload.recipients) || payload.recipients.length === 0 || payload.recipients.length > 50) {
+    throw new BadRequestException('Signit webhook document fields are invalid or incomplete');
+  }
+  const envelopeId = payload.envelopeId.trim();
+  const status = payload.status.trim().toUpperCase();
+  if (input.event === 'DOCUMENT_COMPLETED' || status === 'COMPLETED') {
+    if (typeof payload.completedAt !== 'string' || Number.isNaN(new Date(payload.completedAt).getTime())) {
+      throw new BadRequestException('Signit webhook completion date is invalid or missing');
+    }
+  }
+  const recipients = payload.recipients.map((recipient) => {
+    if (!recipient || typeof recipient !== 'object' || Array.isArray(recipient)) {
+      throw new BadRequestException('Signit webhook recipient is invalid');
+    }
+    const value = recipient as {
+      id?: unknown;
+      envelopeId?: unknown;
+      email?: unknown;
+      name?: unknown;
+      role?: unknown;
+      signedAt?: unknown;
+      readStatus?: unknown;
+      signingStatus?: unknown;
+      sendStatus?: unknown;
+    };
+    if (!Number.isSafeInteger(value.id) || Number(value.id) <= 0 || value.envelopeId !== envelopeId
+      || typeof value.email !== 'string' || value.email.length > 320 || !/^\S+@\S+\.\S+$/.test(value.email)
+      || typeof value.name !== 'string' || !value.name.trim() || value.name.length > 200
+      || typeof value.role !== 'string' || !value.role.trim()
+      || typeof value.readStatus !== 'string' || !value.readStatus.trim()
+      || typeof value.signingStatus !== 'string' || !value.signingStatus.trim()
+      || typeof value.sendStatus !== 'string' || !value.sendStatus.trim()) {
+      throw new BadRequestException('Signit webhook recipient fields are invalid or incomplete');
+    }
+    const signingStatus = value.signingStatus.trim().toUpperCase();
+    const approvalStatus = ['SIGNED', 'APPROVED', 'COMPLETED'].includes(signingStatus)
+      ? 'approved' as const
+      : ['REJECTED', 'DECLINED'].includes(signingStatus)
+        ? 'rejected' as const
+        : 'pending' as const;
+    let actionedDate: string | null = null;
+    if (approvalStatus !== 'pending') {
+      if (typeof value.signedAt !== 'string' || Number.isNaN(new Date(value.signedAt).getTime())) {
+        throw new BadRequestException('Signit webhook recipient action date is invalid or missing');
+      }
+      actionedDate = new Date(value.signedAt).toISOString();
+    }
+    return { email: value.email.trim().toLowerCase(), approvalStatus, actionedDate };
+  });
+  if (new Set(recipients.map(({ email }) => email)).size !== recipients.length) {
+    throw new BadRequestException('Signit webhook contains duplicate recipients');
+  }
+  if (status === 'COMPLETED' && recipients.some(({ approvalStatus }) => approvalStatus !== 'approved')) {
+    throw new BadRequestException('A completed Signit document must have all recipients signed');
+  }
+  return {
+    ignored: false,
+    event: input.event,
+    envelopeId,
+    envelope: { title: payload.title.trim(), status, recipients },
+  } as const;
+}
+
 function signitApiEndpoint(baseUrl: string, path: string) {
   const normalizedBaseUrl = baseUrl.replace(/\/+$/, '');
   return `${normalizedBaseUrl}${/\/api\/v2$/i.test(normalizedBaseUrl) ? '' : '/api/v2'}/${path}`;
@@ -679,7 +772,7 @@ export class OrganisationsService {
   async processSignitWebhook(
     orgId: string,
     productId: string,
-    envelopeId: string,
+    input: SignitWebhookInput,
     webhookToken: string | undefined,
   ) {
     const [configuration] = await this.db
@@ -707,8 +800,11 @@ export class OrganisationsService {
     if (!configuration?.baseUrl || !configuration.authorizationSecret) {
       throw new ConflictException('Signit integration is not configured');
     }
-    if (!envelopeId.trim() || envelopeId.length > 500) throw new BadRequestException('A valid Signit envelope ID is required');
-    const envelope = await this.fetchSignitEnvelopeStatus(configuration.baseUrl, configuration.authorizationSecret, envelopeId.trim());
+    const webhook = parseSignitWebhookInput(input);
+    if (webhook.ignored) return { success: true, ignored: true, event: webhook.event };
+    if (!webhook.envelopeId || webhook.envelopeId.length > 500) throw new BadRequestException('A valid Signit envelope ID is required');
+    const envelope = webhook.envelope
+      ?? await this.fetchSignitEnvelopeStatus(configuration.baseUrl, configuration.authorizationSecret, webhook.envelopeId);
     const serviceKey = this.config.get<string>('CREDITGUARD_INTERNAL_API_KEY');
     if (!serviceKey) throw new BadGatewayException('CreditGuard service authentication is not configured');
     const creditGuardApiUrl = (this.config.get<string>('CREDITGUARD_API_URL') ?? 'http://localhost:4101/api').replace(/\/$/, '');
@@ -717,7 +813,7 @@ export class OrganisationsService {
       response = await fetch(`${creditGuardApiUrl}/internal/signit/envelope-status`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-CreditGuard-Service-Key': serviceKey },
-        body: JSON.stringify({ orgId, envelopeId: envelopeId.trim(), ...envelope }),
+        body: JSON.stringify({ orgId, envelopeId: webhook.envelopeId, ...envelope }),
       });
     } catch {
       throw new BadGatewayException('CreditGuard service could not be reached');

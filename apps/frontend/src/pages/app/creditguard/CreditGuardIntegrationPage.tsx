@@ -290,6 +290,10 @@ export function CreditGuardIntegrationPage() {
                   </Button>
                 </span>
               </label>
+              <div className="grid gap-3 text-sm sm:grid-cols-2">
+                <div><p className="font-medium text-slate-700">Secret header</p><code className="mt-1 block text-slate-600">X-Documenso-Secret</code></div>
+                <div><p className="font-medium text-slate-700">Approval events</p><code className="mt-1 block text-slate-600">DOCUMENT_SIGNED / DOCUMENT_COMPLETED</code></div>
+              </div>
 
               {generatedWebhookToken && (
                 <div role="status" className="space-y-2 rounded-md border border-amber-300 bg-amber-50 p-4">

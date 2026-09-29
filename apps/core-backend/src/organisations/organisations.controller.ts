@@ -23,6 +23,12 @@ import { AuthUser } from '../auth/auth-user.interface';
 import { Public } from '../auth/public.decorator';
 import { Roles } from '../auth/roles.decorator';
 
+interface SignitWebhookBody {
+  event?: unknown;
+  payload?: unknown;
+  envelopeId?: unknown;
+}
+
 @Controller('organisations')
 export class OrganisationsController {
   constructor(private readonly orgs: OrganisationsService) {}
@@ -193,11 +199,17 @@ export class OrganisationsController {
   processSignitWebhook(
     @Param('id') id: string,
     @Param('productId') productId: string,
-    @Body('envelopeId') envelopeId: unknown,
-    @Headers('x-webhook-token') webhookToken: string | undefined,
+    @Body() body: SignitWebhookBody,
+    @Headers('x-documenso-secret') documensoSecret: string | undefined,
+    @Headers('x-webhook-token') legacyWebhookToken: string | undefined,
   ) {
-    if (typeof envelopeId !== 'string') throw new BadRequestException('A valid Signit envelope ID is required');
-    return this.orgs.processSignitWebhook(id, productId, envelopeId, webhookToken);
+    if (!body || typeof body !== 'object') throw new BadRequestException('A valid Signit webhook payload is required');
+    if (body.event !== undefined && typeof body.event !== 'string') throw new BadRequestException('A valid Signit webhook event is required');
+    return this.orgs.processSignitWebhook(id, productId, {
+      event: body.event,
+      payload: body.payload,
+      legacyEnvelopeId: body.envelopeId,
+    }, documensoSecret ?? legacyWebhookToken);
   }
 
   @Post(':id/modules/:productId/integrations/signit/envelopes')

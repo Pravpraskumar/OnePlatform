@@ -57,6 +57,20 @@ test('request list identifies MIL parent company guarantees and supports Notes-o
   await expect(page.getByText('CG-1001')).toBeHidden();
 });
 
+test('Approved requests cannot be edited or deleted from the request list', async ({ page }) => {
+  await page.route('**/requests?*', (route) => route.fulfill({
+    contentType: 'application/json',
+    body: JSON.stringify([{ ...creditGuardRequest, status: 'Approved' }]),
+  }));
+
+  await page.goto('/app/product/CreditGuard/requests');
+  const requestRow = page.locator('tbody tr').filter({ hasText: creditGuardRequest.requestNumber });
+  await expect(requestRow.getByTitle('Edit notes')).toBeDisabled();
+  await expect(requestRow.getByTitle('Delete')).toBeDisabled();
+  await requestRow.getByRole('cell', { name: creditGuardRequest.beneficiary }).click();
+  await expect(page.getByRole('button', { name: 'Approval Status' })).toBeEnabled();
+});
+
 test('Assign Approvers is enabled only for a selected Reviewed request', async ({ page }) => {
   await page.route('**/creditguard-api/requests?*', (route) => route.fulfill({ contentType: 'application/json', body: JSON.stringify([{ ...creditGuardRequest, status: 'Reviewed' }]) }));
   await page.goto('/app/product/CreditGuard/requests');

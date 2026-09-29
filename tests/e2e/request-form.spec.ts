@@ -179,6 +179,31 @@ test('Under Review request is read-only except for attachments', async ({ page }
   await expect(page.getByTitle('Delete guarantee.pdf')).toBeVisible();
 });
 
+test('Approved request and attachments are fully read-only', async ({ page }) => {
+  await page.route(/\/requests\/request-1(?:\?.*)?$/, (route) => route.fulfill({
+    contentType: 'application/json',
+    body: JSON.stringify({ ...creditGuardRequest, status: 'Approved', details: creditGuardDetails }),
+  }));
+  await page.route(/\/requests\/request-1\/attachments(?:\?.*)?$/, (route) => route.fulfill({
+    contentType: 'application/json',
+    body: JSON.stringify([creditGuardAttachment]),
+  }));
+  await page.route('**/business-entities*', (route) => route.fulfill({
+    contentType: 'application/json',
+    body: JSON.stringify([{ id: 'entity-1', jobCodeEntity: '100', segment1: 'US', legalEntityName: 'Designer Energy LLC' }]),
+  }));
+
+  await page.goto('/app/product/CreditGuard/requests/request-1/edit');
+
+  await expect(page.getByText('Approved requests and their attachments are read-only.')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Save changes' })).toHaveCount(0);
+  await expect(page.getByLabel('Beneficiary name')).toBeDisabled();
+  await expect(page.getByTitle('Open guarantee.pdf')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Attach Request' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Attach documents' })).toHaveCount(0);
+  await expect(page.getByTitle('Delete guarantee.pdf')).toHaveCount(0);
+});
+
 test('uploaded document remains visible without refreshing the edit request', async ({ page }) => {
   let uploaded = false;
   await page.route('**/business-entities*', (route) => route.fulfill({

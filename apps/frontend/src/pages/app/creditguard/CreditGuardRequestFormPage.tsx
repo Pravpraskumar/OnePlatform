@@ -434,7 +434,8 @@ export function CreditGuardRequestFormPage({ mode }: RequestFormProps) {
   }, [details.parentCompanyOfferingGuarantee, details.parentEntityType, milBusinessEntity, summary.instrumentType]);
   
   const requestsUrl = `/app/product/CreditGuard/requests${projectId ? `?projectId=${encodeURIComponent(projectId)}` : ''}`;
-  const isWorkflowReadOnly = isEdit && ['Under Review', 'Reviewed', 'Sent for Approval'].includes(summary.status);
+  const isWorkflowReadOnly = isEdit && ['Under Review', 'Reviewed', 'Sent for Approval', 'Approved'].includes(summary.status);
+  const areAttachmentsReadOnly = ['Reviewed', 'Sent for Approval', 'Approved'].includes(summary.status);
   const canCompleteReview = summary.status === 'Under Review' && !!user && user.id === assignedReviewer?.id;
   const canAssignReviewer = summary.status === 'Draft' || (summary.status === 'Under Review' && !!user && (
     user.id === requestedByUserId
@@ -724,7 +725,7 @@ export function CreditGuardRequestFormPage({ mode }: RequestFormProps) {
 
       {errorMessage && <div role="alert" className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{errorMessage}</div>}
 
-      {isWorkflowReadOnly && <div className="rounded-md border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">Request details are read-only while review and approvals are in progress.</div>}
+      {isWorkflowReadOnly && <div className="rounded-md border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">{summary.status === 'Approved' ? 'Approved requests and their attachments are read-only.' : 'Request details are read-only while review and approvals are in progress.'}</div>}
       <fieldset disabled={isWorkflowReadOnly} className="min-w-0 space-y-6 border-0 p-0">
       {projectRequired && <Card><h2 className={sectionTitleClass}>Project</h2><label className={`${labelClass} mt-4 block`}>Assigned project<span className="ml-1 text-red-600">*</span><select className={inputClass} value={projectId} onChange={(event) => setProjectId(event.target.value)} required><option value="">Select a project</option>{projects.map((project) => <option key={project.id} value={project.id}>{project.name} ({project.code})</option>)}</select></label></Card>}
 
@@ -939,7 +940,7 @@ export function CreditGuardRequestFormPage({ mode }: RequestFormProps) {
             <div className="mt-4 rounded-md border border-slate-300 bg-slate-50 p-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <p className="text-sm text-slate-600">PDF or DOCX, up to 10 MB each. At least one is required before approval.</p>
-                {!['Reviewed', 'Sent for Approval'].includes(summary.status) && <div className="flex flex-wrap items-center gap-2">
+                {!areAttachmentsReadOnly && <div className="flex flex-wrap items-center gap-2">
                   <Button type="button" variant="secondary" onClick={() => void attachRequest()} disabled={attachingRequest || uploading}>
                     <FilePlus2 size={16} />{attachingRequest ? 'Attaching...' : 'Attach Request'}
                   </Button>
@@ -963,7 +964,7 @@ export function CreditGuardRequestFormPage({ mode }: RequestFormProps) {
                   <span className="flex min-w-0 items-center gap-2"><Paperclip size={15} className="shrink-0 text-slate-500" /><span className="truncate">{attachment.originalFileName}</span><span className="shrink-0 text-xs text-slate-400">{attachment.isLegacyMarker ? 'Already attached' : formatFileSize(attachment.fileSizeBytes)}</span></span>
                   <span className="flex shrink-0 items-center gap-1">
                     {!attachment.isLegacyMarker && <button type="button" title={`Open ${attachment.originalFileName}`} onClick={() => openAttachment(attachment)} className="rounded p-1.5 text-slate-600 hover:bg-white hover:text-brand"><ExternalLink size={16} /></button>}
-                    {!attachment.isLegacyMarker && !['Reviewed', 'Sent for Approval'].includes(summary.status) && <button type="button" title={`Delete ${attachment.originalFileName}`} onClick={() => void removeAttachment(attachment)} className="rounded p-1.5 text-slate-600 hover:bg-white hover:text-red-700"><Trash2 size={16} /></button>}
+                    {!attachment.isLegacyMarker && !areAttachmentsReadOnly && <button type="button" title={`Delete ${attachment.originalFileName}`} onClick={() => void removeAttachment(attachment)} className="rounded p-1.5 text-slate-600 hover:bg-white hover:text-red-700"><Trash2 size={16} /></button>}
                   </span>
                 </li>)}
               </ul>}

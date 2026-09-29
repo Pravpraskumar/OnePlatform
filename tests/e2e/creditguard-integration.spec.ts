@@ -113,6 +113,8 @@ test('generates, conceals, rotates, and revokes the Signit webhook token', async
   await expect(page.getByRole('button', { name: 'Generate token' })).toBeEnabled();
   await page.getByRole('button', { name: 'Generate token' }).click();
   await expect(page.getByLabel('Generated webhook token')).toHaveValue('cgw_token_1_secret');
+  await expect(page.getByText('X-Documenso-Secret', { exact: true })).toBeVisible();
+  await expect(page.getByText('DOCUMENT_SIGNED / DOCUMENT_COMPLETED', { exact: true })).toBeVisible();
   await expect(page.getByText('Token cgw_token_1... is configured')).toBeVisible();
 
   await page.reload();
