@@ -803,8 +803,7 @@ export class OrganisationsService {
     const webhook = parseSignitWebhookInput(input);
     if (webhook.ignored) return { success: true, ignored: true, event: webhook.event };
     if (!webhook.envelopeId || webhook.envelopeId.length > 500) throw new BadRequestException('A valid Signit envelope ID is required');
-    const envelope = webhook.envelope
-      ?? await this.fetchSignitEnvelopeStatus(configuration.baseUrl, configuration.authorizationSecret, webhook.envelopeId);
+    const envelope = await this.fetchSignitEnvelopeStatus(configuration.baseUrl, configuration.authorizationSecret, webhook.envelopeId);
     const serviceKey = this.config.get<string>('CREDITGUARD_INTERNAL_API_KEY');
     if (!serviceKey) throw new BadGatewayException('CreditGuard service authentication is not configured');
     const creditGuardApiUrl = (this.config.get<string>('CREDITGUARD_API_URL') ?? 'http://localhost:4101/api').replace(/\/$/, '');
