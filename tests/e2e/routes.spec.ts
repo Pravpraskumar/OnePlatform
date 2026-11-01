@@ -5,14 +5,6 @@ const routes = [
   ['/app/dashboard', 'Dashboard'],
   ['/app/products', 'Products'],
   ['/app/product/PRIME', 'PRIME'],
-  ['/app/product/CreditGuard', 'CreditGuard Process Guide'],
-  ['/app/product/CreditGuard/requests', 'Requests'],
-  ['/app/product/CreditGuard/requests/new', 'New Company Guarantee Request'],
-  ['/app/product/CreditGuard/requests/request-1/edit', 'Edit Company Guarantee Request'],
-  ['/app/product/CreditGuard/requests/request-1/approvers', 'Assign Approvers'],
-  ['/app/product/CreditGuard/reports', 'Reports & Analytics'],
-  ['/app/product/CreditGuard/application-setup/business-entities', 'Business Entities'],
-  ['/app/product/CreditGuard/application-setup/module-users', 'Module Users'],
   ['/app/help', 'Help Center'],
   ['/app/resources', 'Help Center'],
   ['/account/settings', 'Account Settings'],
@@ -51,4 +43,10 @@ test('/app redirects to the dashboard and unknown routes return home', async ({ 
   await expect(page).toHaveURL(/\/app\/dashboard$/);
   await page.goto('/not-a-route');
   await expect(page).toHaveURL(/\/$/);
+});
+
+test('CreditGuard URLs return to the product list', async ({ page }) => {
+  await page.goto('/app/product/CreditGuard/requests');
+  await expect(page).toHaveURL(/\/app\/products$/);
+  await expect(page.getByRole('heading', { name: 'Products', exact: true })).toBeVisible();
 });

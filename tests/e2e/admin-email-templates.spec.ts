@@ -9,25 +9,26 @@ test('global administrator edits an event template and inserts an allowed placeh
   await page.goto('/admin/email-templates');
 
   await expect(page.getByRole('heading', { name: 'Email Templates' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Request Review' })).toBeVisible();
-  await page.getByLabel('Subject').fill('Review required: ');
-  await page.getByRole('button', { name: 'Insert requestNumber placeholder' }).click();
-  await page.getByLabel('Body').fill('Hello {{recipientName}}, please review {{requestNumber}}.');
+  await expect(page.getByRole('button', { name: 'Request Review' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Opportunity Update' })).toBeVisible();
+  await page.getByLabel('Subject').fill('Updated: ');
+  await page.getByRole('button', { name: 'Insert opportunityNumber placeholder' }).click();
+  await page.getByLabel('Body').fill('Hello {{recipientName}}, opportunity {{opportunityNumber}} changed.');
 
   const requestPromise = page.waitForRequest((request) =>
-    request.method() === 'PUT' && request.url().endsWith('/api/notifications/email-templates/template-1'),
+    request.method() === 'PUT' && request.url().endsWith('/api/notifications/email-templates/template-2'),
   );
   await page.getByRole('button', { name: 'Save template' }).click();
   const request = await requestPromise;
 
   expect(request.postDataJSON()).toEqual({
-    subjectTemplate: 'Review required: {{requestNumber}}',
-    bodyTemplate: 'Hello {{recipientName}}, please review {{requestNumber}}.',
+    subjectTemplate: 'Updated: {{opportunityNumber}}',
+    bodyTemplate: 'Hello {{recipientName}}, opportunity {{opportunityNumber}} changed.',
   });
 });
 
 test('template validation failure remains visible to the administrator', async ({ page }) => {
-  await page.route('**/api/notifications/email-templates/template-1', (route) => route.fulfill({
+  await page.route('**/api/notifications/email-templates/template-2', (route) => route.fulfill({
     status: 400,
     contentType: 'application/json',
     body: JSON.stringify({ message: 'Unknown email template placeholders: unsupported' }),

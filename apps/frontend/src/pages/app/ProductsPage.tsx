@@ -17,7 +17,7 @@ export function ProductsPage() {
     }
     api
       .get<Product[]>(`/products?orgId=${encodeURIComponent(selectedOrg.id)}`)
-      .then(setProducts)
+      .then((items) => setProducts(items.filter((item) => item.code.toLowerCase() !== 'creditguard')))
       .catch(() => setProducts([]));
   }, [api, selectedOrg]);
 

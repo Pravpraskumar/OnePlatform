@@ -37,7 +37,7 @@ function MenuItem({ node, collapsed, depth }: { node: MenuNode; collapsed: boole
       {node.route ? (
         <NavLink
           to={node.route}
-          end={node.route === '/app/product/CreditGuard'}
+          end={false}
           className={({ isActive }) =>
             clsx(
               'flex items-center rounded-md px-3 py-2 text-sm transition',
@@ -101,7 +101,11 @@ export function AppSidebar({ collapsed }: Props) {
   const isOrganisationAdmin =
     selectedOrg?.membership === 'Owner' || selectedOrg?.membership === 'Admin';
   const canManageOrganisation = isOrganisationAdmin || hasGlobalUsers(menus);
-  let visibleMenus = menus;
+  const withoutCreditGuard = (nodes: MenuNode[]): MenuNode[] =>
+    nodes
+      .filter((node) => node.name.toLowerCase() !== 'creditguard')
+      .map((node) => ({ ...node, children: withoutCreditGuard(node.children) }));
+  let visibleMenus = withoutCreditGuard(menus);
   if (selectedOrg && !canManageOrganisation) {
     const hideOrganisationAdminMenus = (nodes: MenuNode[]): MenuNode[] =>
       nodes

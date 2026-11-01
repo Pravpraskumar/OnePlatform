@@ -2,3 +2,4 @@
 -- The core database (platform_core) is created via POSTGRES_DB.
 CREATE DATABASE creditguard;
 CREATE DATABASE prime;
+CREATE DATABASE capturepro;

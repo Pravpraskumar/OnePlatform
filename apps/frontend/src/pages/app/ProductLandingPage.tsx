@@ -1,12 +1,11 @@
 import { useEffect, useState } from 'react';
-import { Link, useOutletContext, useParams } from 'react-router-dom';
+import { Link, Navigate, useOutletContext, useParams } from 'react-router-dom';
 import { FolderKanban } from 'lucide-react';
 import type { Product } from '@platform/shared';
 import { Card } from '@/components/ui/Card';
 import { useApi } from '@/lib/ApiProvider';
 import { useOrg } from '@/state/OrgProvider';
 import { useProductSession } from '@/hooks/useProductSession';
-import { CreditGuardLanding } from './creditguard/CreditGuardLanding';
 
 export function ProductLandingPage() {
   const { code } = useParams<{ code: string }>();
@@ -70,6 +69,8 @@ export function ProductLandingPage() {
     projectRequired,
     allocationChecked,
   );
+
+  if (code?.toLowerCase() === 'creditguard') return <Navigate to="/app/products" replace />;
 
   const selectProject = async (nextProjectId: string) => {
     if (!selectedOrg || !product) return;
@@ -158,18 +159,12 @@ export function ProductLandingPage() {
   return (
     <div>
       {projectSubheader}
-      {product.code.toLowerCase() === 'creditguard' ? (
-        <CreditGuardLanding />
-      ) : (
-        <>
-          <h1 className="text-2xl font-semibold text-slate-900">{product.name}</h1>
-          <Card className="mt-6">
-            <p className="text-slate-500">
-              {product.name} module landing page. Detailed features will be added later.
-            </p>
-          </Card>
-        </>
-      )}
+      <h1 className="text-2xl font-semibold text-slate-900">{product.name}</h1>
+      <Card className="mt-6">
+        <p className="text-slate-500">
+          {product.name} module landing page. Detailed features will be added later.
+        </p>
+      </Card>
     </div>
   );
 }

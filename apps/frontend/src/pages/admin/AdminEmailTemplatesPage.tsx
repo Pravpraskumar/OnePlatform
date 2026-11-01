@@ -45,10 +45,11 @@ export function AdminEmailTemplatesPage() {
     api.get<EmailTemplate[]>('/notifications/email-templates')
       .then((rows) => {
         if (!active) return;
-        setTemplates(rows);
-        setSelectedId(rows[0]?.id ?? '');
-        setSubjectTemplate(rows[0]?.subjectTemplate ?? '');
-        setBodyTemplate(rows[0]?.bodyTemplate ?? '');
+        const availableRows = rows.filter((row) => row.productCode.toLowerCase() !== 'creditguard');
+        setTemplates(availableRows);
+        setSelectedId(availableRows[0]?.id ?? '');
+        setSubjectTemplate(availableRows[0]?.subjectTemplate ?? '');
+        setBodyTemplate(availableRows[0]?.bodyTemplate ?? '');
       })
       .catch((requestError: Error) => active && setError(requestError.message))
       .finally(() => active && setLoading(false));

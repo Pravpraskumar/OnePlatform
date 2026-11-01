@@ -1,4 +1,4 @@
-export type HelpCategory = 'Get started' | 'CreditGuard' | 'Organisation administration' | 'Global administration';
+export type HelpCategory = 'Get started' | 'Capture-Pro' | 'Organisation administration' | 'Global administration';
 
 export interface HelpSection {
   title: string;
@@ -42,68 +42,42 @@ export const helpTopics: HelpTopic[] = [
     ],
   },
   {
-    id: 'creditguard-overview', category: 'CreditGuard', title: 'CreditGuard overview', summary: 'Understand the financial-security workflow and available instruments.',
+    id: 'capture-pro-overview', category: 'Capture-Pro', title: 'Capture-Pro overview', summary: 'Turn upcoming-bid intelligence into a governed, versioned capture plan.',
     sections: [
-      { title: 'Purpose', content: 'CreditGuard manages financial-security requests, controlled documents, review, approval routing, and portfolio reporting.' },
-      { title: 'Process guide', content: 'The CreditGuard overview explains instrument selection, request initiation, Parent Company Guarantees, bank instruments, documentary controls, and monitoring responsibilities.' },
-      { title: 'Roles', content: 'Requestors create and manage requests. Reviewers complete assigned reviews. Organisation and Global Administrators configure supporting data and access.' },
+      { title: 'Pursuit lifecycle', content: 'Capture-Pro moves an opportunity from preliminary Pre-ITT intake through grounded source collection, tender verification, specialist analysis, capture-plan composition, and a human bid decision.' },
+      { title: 'Human authority', content: 'Agent outputs are decision support. Authorised people remain responsible for assumptions, engineering values, commitments, reviews, and bid decisions.' },
+      { title: 'Product access', content: 'Capture-Pro requires organisation licensing, a product role, project allocation when configured, and an available concurrent seat.' },
     ],
   },
   {
-    id: 'creditguard-requests', category: 'CreditGuard', title: 'Request register', summary: 'Find, filter, sort, and manage CreditGuard requests.',
+    id: 'capture-pro-data', category: 'Capture-Pro', title: 'Governed data library', summary: 'Register TG3 source references and preserve source boundaries.',
     sections: [
-      { title: 'Work with the register', content: 'The Requests screen shows records in the selected organisation and project.', steps: ['Use column filters to narrow results.', 'Select column headings to sort.', 'Use Columns to show only fields needed for the task.', 'Open the request number to view or edit the full request.'] },
-      { title: 'Available actions', content: 'Create Request starts a Draft. Notes can be edited inline where permitted. Assign Approvers and approval actions appear only at the appropriate workflow status.' },
-      { title: 'Status guide', content: 'Draft is editable. Under Review locks business fields while allowing controlled attachment work. Reviewed enables approver assignment. Sent for Approval tracks Signit actions. Approved, Issued, Rejected, and Closed represent downstream outcomes.' },
+      { title: 'Data sets', content: 'The library groups the TG3 Commercial Intelligence sources by purpose and freshness policy.' },
+      { title: 'Register a source', content: 'Add a file name, document type, optional HTTPS SharePoint link, and as-of date. Capture-Pro stores metadata and links only; it does not upload or copy the file.' },
+      { title: 'SharePoint access', content: 'Live discovery is disabled until a site-scoped Entra identity is approved. Never paste access tokens, client secrets, or credential-bearing links into source metadata.' },
     ],
   },
   {
-    id: 'creditguard-request-form', category: 'CreditGuard', title: 'Create and edit a request', summary: 'Complete request details, documents, and reviewer submission.',
+    id: 'capture-pro-plans', category: 'Capture-Pro', title: 'Capture plans and versions', summary: 'Commission, edit, cite, and version the 14-section capture plan.',
     sections: [
-      { title: 'Create a Draft', content: 'Complete the Request, Guarantee and contract, and Supporting information blocks. Required fields are marked.', steps: ['Choose the project when required.', 'Enter instrument, parties, value, currency, dates, and contract details.', 'Select legal entities from configured Business Entities.', 'Save to create the Draft before adding documents.'] },
-      { title: 'Attachments', content: 'Draft and Under Review requests accept permitted PDF and DOCX files. Attach Request generates or replaces the controlled request PDF named with the request number.' },
-      { title: 'Submit for review', content: 'Select an eligible CreditGuard Reviewer and submit. Submission requires the generated latest request PDF. The request becomes Under Review and the reviewer receives the configured email.' },
-      { title: 'Editing rules', content: 'Draft fields are editable. Under Review fields are read-only, but an authorized requestor can reassign the reviewer and manage attachments. Reviewed requests are read-only.' },
+      { title: 'Commission a plan', content: 'Select an opportunity to create version 1 with CP-01 through CP-14. An opportunity can have one capture plan.' },
+      { title: 'Edit sections', content: 'Open a section to maintain its narrative, status, unlinked citation labels, and links to registered governed sources.' },
+      { title: 'Create a version', content: 'Use New version with a meaningful change summary. Capture-Pro copies the current sections and citations into a new immutable version record.' },
+      { title: 'Agent runs', content: 'Queue run currently records an auditable request only. It does not execute a model until an approved orchestrator is configured.' },
     ],
   },
   {
-    id: 'creditguard-review', category: 'CreditGuard', title: 'Review a request', summary: 'Complete assigned review work and preserve workflow accountability.',
+    id: 'capture-pro-salesforce', category: 'Capture-Pro', title: 'Salesforce opportunities and integrations', summary: 'Configure Salesforce and Spinergie, synchronize opportunities, and review the extract.',
     sections: [
-      { title: 'Reviewer assignment', content: 'Only the currently assigned eligible reviewer can complete review. Reassignment removes the former reviewer’s completion authority immediately.' },
-      { title: 'Perform the review', content: 'Open the request, inspect persisted details and attachments, and resolve concerns outside the application according to the governing process.', steps: ['Confirm the request is assigned to you.', 'Open the generated PDF and supporting documents.', 'Use Review done only after the review is complete.'] },
-      { title: 'Review done', content: 'Completing review records the reviewer and time, changes status to Reviewed, and enables the requestor or administrator to build the approval chain.' },
-    ],
-  },
-  {
-    id: 'creditguard-approvers', category: 'CreditGuard', title: 'Assign approvers', summary: 'Build and finalize an ordered approval chain.',
-    sections: [
-      { title: 'Build the chain', content: 'For a Reviewed request, assign an approved contact to every required approval title. The order determines sequential signing.', steps: ['Review the generated required titles.', 'Select a representative for each title.', 'Add or reorder permitted rows when needed.', 'Save the chain.'] },
-      { title: 'Finalize', content: 'Finalize only when every required row is assigned and ordered correctly. Finalization locks structural changes.' },
-      { title: 'Modify a finalized chain', content: 'An Organisation Owner/Admin or Global Administrator can reopen a chain only before any approver has acted.', note: 'Once an approval or rejection is recorded, the chain cannot be structurally changed.' },
-    ],
-  },
-  {
-    id: 'creditguard-approval', category: 'CreditGuard', title: 'Initiate and track approval', summary: 'Send finalized requests to Signit and monitor approver actions.',
-    sections: [
-      { title: 'Initiate approval', content: 'Choose the request PDFs to send, verify the finalized approver order, and initiate approval. CreditGuard creates and distributes a Signit envelope.' },
-      { title: 'Approval status', content: 'After initiation, use Refresh to retrieve current approver actions. The request remains immutable while the external approval is active.' },
-      { title: 'Recall', content: 'Organisation Owners/Admins and Global Administrators can recall an active approval when the business process permits it.', note: 'A failed initiation leaves the request Reviewed so the issue can be corrected and retried.' },
-    ],
-  },
-  {
-    id: 'creditguard-reports', category: 'CreditGuard', title: 'Reports and analytics', summary: 'Interpret request counts, status distribution, and portfolio value.',
-    sections: [
-      { title: 'Scope', content: 'Reports use requests in the selected organisation and project context. Change context before comparing another portfolio.' },
-      { title: 'Measures', content: 'The page shows total and open requests, counts by status and instrument, and portfolio values grouped by currency.' },
-      { title: 'Interpretation', content: 'Currency totals are kept separate and are not converted. Treat the report as an operational view of current application data.' },
-    ],
-  },
-  {
-    id: 'creditguard-setup', category: 'CreditGuard', title: 'CreditGuard application setup', summary: 'Maintain business entities, contacts, module users, and Signit integration.',
-    sections: [
-      { title: 'Business Entities', content: 'Maintain job code, segment, legal entity, ledger, and inventory organisation data used by request forms.' },
-      { title: 'Module Users and Approvers', content: 'Approvers are organisation contacts used in approval chains. Registered Users shows eligible members and product roles; access is managed through platform administration.' },
-      { title: 'Integration', content: 'Authorized administrators configure the Signit service URL and authorization key. Saved secrets are never displayed again.', note: 'Use Clear only when intentionally disabling the saved integration credential.' },
+      { title: 'Integrations', content: 'Capture-Pro Module Administrators, Global Administrators, and organisation Owners/Admins save Salesforce OAuth 2.0 Client Credentials and the Spinergie API key. Saved secrets are encrypted and never displayed again.' },
+      { title: 'Sync & Health', content: 'Open Capture-Pro > Salesforce > Sync & Health. Integration administrators use Sync opportunities now to import Subsea and Floating Facilities opportunities with the market-analyst filter, stage adjustments, TBA sub-category, and Floater/Subsea classification, Sync accounts now to import all Salesforce Accounts (Id, Name, Type, Company Short Name), Sync competitors now to import all Project Competitor Details, Sync bid budgets now to import all Opportunity Bid Budget records, Sync fabrication yards now to import every queryable Fabrication Yard field and record, and Sync vessels now to do the same for Vessel records. Managers and Analysts can view each type\'s connection health, the last run, and the run log with its Type column. Health reflects recorded sync runs: Healthy when the latest run of that type succeeded and Failing when it failed. A sync never creates or changes Capture-Pro opportunities.' },
+      { title: 'Accounts', content: 'Open Capture-Pro > Salesforce > Accounts to search and filter the synchronized Salesforce Accounts by name, type, company short name, or Salesforce ID, and select a row to see its details. Accounts no longer returned by Salesforce are retained and can be shown with the removed-records option.' },
+      { title: 'Competitors', content: 'Open Capture-Pro > Salesforce > Competitors to review Project Competitor Details with Salesforce field types: Won as Yes/No and the competitor bid price as a number. The Opportunity and Competitor columns show synced opportunity numbers and account names when those records are available, otherwise the Salesforce ID. Filter each column, search, include records no longer in Salesforce, and select a row to see every field.', note: 'Competitor bid prices are commercially confidential.' },
+      { title: 'Bid Budget Data', content: 'Open Capture-Pro > Salesforce > Bid Budget Data to review Opportunity Bid Budget records with Salesforce field types: costs, budgets, spend, compensation, pre-contract amounts, forecast purpose, and hours are numbers that accept filters such as >100000 or 1000..5000, and Recovery Year is a picklist. An opportunity can have several bid budget records. The Opportunity column shows the synced opportunity number and name when available, otherwise the Salesforce ID. Filter each column, search, include records no longer in Salesforce, and select a row to see every field.', note: 'Bid costs, budgets, and spend are commercially confidential.' },
+      { title: 'Fabrication Yard', content: 'Open Capture-Pro > Salesforce > Fabrication Yard to review every Fabrication Yard record with all queryable Salesforce fields. Fields are discovered from Salesforce on each sync, so new Salesforce fields appear after the next sync. The table shows key columns by default; use Columns to show any field. Filter each visible column, search, include records no longer in Salesforce, and select a row to see every field.', note: 'Composite address and location fields, file fields, and encrypted fields are not imported.' },
+      { title: 'Vessel Data', content: 'Open Capture-Pro > Salesforce > Vessel Data to review every Salesforce Vessel record with all queryable fields, discovered from Salesforce on each sync. It works like Fabrication Yard: key columns by default, Columns to show any field, a filter per visible column, search, removed records, and a details panel with every field.' },
+      { title: 'Data source', content: 'Every Salesforce screen and Sync & Health panel shows a Data source: Salesforce badge with the Salesforce object the data comes from, such as Opportunity, Account, or Vessel__c. The data is a read-only copy; change it in Salesforce and run a sync to refresh it.' },
+      { title: 'Review the extract', content: 'Capture-Pro Managers, Analysts, and administrators open Capture-Pro > Salesforce > Opportunities. Key columns are shown by default; use Columns to show any synced field, the filter row under each header to narrow results (for numbers, use >, <, = or a range such as 100..500), and select a row to see every field. Records that later drop out of the Salesforce extract are retained and labelled Not in latest extract.', note: 'Forecasted revenue, gross profit, and competitor bid prices are commercially confidential. Do not export or share them outside approved channels.' },
     ],
   },
   {
@@ -145,13 +119,10 @@ export const helpTopics: HelpTopic[] = [
 ];
 
 const contextualTopics: Array<{ matches: (path: string) => boolean; topicId: string }> = [
-  { matches: (path) => /\/app\/product\/CreditGuard\/requests\/[^/]+\/approval$/.test(path), topicId: 'creditguard-approval' },
-  { matches: (path) => /\/app\/product\/CreditGuard\/requests\/[^/]+\/approvers$/.test(path), topicId: 'creditguard-approvers' },
-  { matches: (path) => path.endsWith('/requests/new') || /\/requests\/[^/]+\/edit$/.test(path), topicId: 'creditguard-request-form' },
-  { matches: (path) => path.endsWith('/CreditGuard/requests'), topicId: 'creditguard-requests' },
-  { matches: (path) => path.endsWith('/CreditGuard/reports'), topicId: 'creditguard-reports' },
-  { matches: (path) => path.includes('/CreditGuard/application-setup/'), topicId: 'creditguard-setup' },
-  { matches: (path) => path === '/app/product/CreditGuard', topicId: 'creditguard-overview' },
+  { matches: (path) => /\/app\/product\/Capture-Pro\/plans(?:\/[^/]+)?$/.test(path), topicId: 'capture-pro-plans' },
+  { matches: (path) => path.endsWith('/Capture-Pro/data-library'), topicId: 'capture-pro-data' },
+  { matches: (path) => /\/Capture-Pro\/(?:opportunities|accounts|competitors|bid-budgets|fabrication-yards|vessels|salesforce-opportunities|salesforce-sync|integrations)$/.test(path), topicId: 'capture-pro-salesforce' },
+  { matches: (path) => path.startsWith('/app/product/Capture-Pro'), topicId: 'capture-pro-overview' },
   { matches: (path) => path === '/app/products' || /^\/app\/product\//.test(path), topicId: 'products-projects' },
   { matches: (path) => path === '/account/settings', topicId: 'account-settings' },
   { matches: (path) => path.startsWith('/org/'), topicId: 'organisation-administration' },

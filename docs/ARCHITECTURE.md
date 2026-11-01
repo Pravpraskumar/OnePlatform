@@ -20,14 +20,13 @@ flowchart LR
 
     User --> SPA
     SPA -->|/api/*| Core
-    SPA -->|/creditguard-api/*| CG
     Core --> CoreDB
     CG --> CGDB
     Prime --> PrimeDB
     CG -. identity and protected integration calls .-> Core
 ```
 
-The central design rule is **control-plane data stays in core; product-domain data stays in the owning product service**. There are no cross-database foreign keys or distributed transactions.
+CreditGuard remains as a local backend and data store, but its SPA screens, API client, and Vite proxy have been retired. The service is not reachable through the frontend proxy. The central design rule is **control-plane data stays in core; product-domain data stays in the owning product service**. There are no cross-database foreign keys or distributed transactions.
 
 ## 2. Technology stack
 
@@ -71,6 +70,7 @@ flowchart TB
     Apps --> CoreApp[core-backend]
     Apps --> CGApp[creditguard-service]
     Apps --> PrimeApp[prime-service]
+    Apps --> CaptureProApp[capture-pro-service]
     Packages --> Shared[shared contracts]
     Infra --> Compose[Docker Compose]
     Infra --> Bicep[Azure Bicep]
@@ -83,7 +83,8 @@ flowchart TB
 | --- | --- |
 | `apps/frontend` | One responsive SPA for platform and product experiences |
 | `apps/core-backend` | Identity, tenancy, RBAC, menus, products, projects, settings, licensing, sessions, email, and encrypted integration configuration |
-| `apps/creditguard-service` | Financial-security requests, attachments, reviewer state, approvers, Signit envelope references, and reports data |
+| `apps/creditguard-service` | Retained local API and data store for financial-security requests, attachments, reviewer state, approvers, and Signit envelope references; no SPA screens |
+| `apps/capture-pro-service` | Upcoming-bid opportunities, TG3 source metadata, versioned capture plans, agent runs, and audit evidence |
 | `apps/prime-service` | PRIME service/database scaffold; domain behavior is not yet defined |
 | `packages/shared` | Shared TypeScript API contracts and role constants |
 | `infra` | Local PostgreSQL and intended Azure infrastructure |
@@ -99,17 +100,19 @@ flowchart LR
     CoreAPI[Core NestJS API<br/>localhost:4000/api]
     CGAPI[CreditGuard NestJS API<br/>localhost:4101/api]
     PrimeAPI[PRIME NestJS API<br/>localhost:4102/api]
+    CaptureProAPI[Capture-Pro NestJS API<br/>localhost:4103/api]
     Postgres[(PostgreSQL<br/>localhost:5432)]
 
     Browser --> Vite
     Vite -->|/api| CoreAPI
-    Vite -->|/creditguard-api<br/>rewrite to /api| CGAPI
+    Vite -->|/capturepro-api<br/>rewrite to /api| CaptureProAPI
     CoreAPI -->|platform_core| Postgres
     CGAPI -->|creditguard| Postgres
     PrimeAPI -->|prime| Postgres
+    CaptureProAPI -->|capturepro| Postgres
 ```
 
-The browser uses relative URLs. In development, Vite routes core traffic and rewrites CreditGuard traffic. Product services are separate runtimes even when they share one local PostgreSQL server.
+The browser uses relative URLs. In development, Vite routes core traffic and rewrites Capture-Pro traffic. The retained CreditGuard API is a separate runtime and is not proxied by the frontend.
 
 | Runtime | Port | Public prefix | Database |
 | --- | ---: | --- | --- |
@@ -117,6 +120,7 @@ The browser uses relative URLs. In development, Vite routes core traffic and rew
 | Core backend | 4000 | `/api` | `platform_core` |
 | CreditGuard | 4101 | `/api` | `creditguard` |
 | PRIME | 4102 | `/api` | `prime` |
+| Capture-Pro | 4103 | `/api` | `capturepro` |
 
 ## 5. Frontend design
 
@@ -135,7 +139,7 @@ flowchart TB
     Query --> API --> Session --> Theme --> Org --> Router
 ```
 
-- `ApiProvider` owns authenticated core and CreditGuard request helpers.
+- `ApiProvider` owns authenticated core and Capture-Pro request helpers.
 - `SessionProvider` owns the local user, JWT lifecycle, and sign-out behavior.
 - `ThemeProvider` loads shared and personal appearance settings.
 - `OrgProvider` owns the active tenant selection.

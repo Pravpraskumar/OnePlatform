@@ -4,7 +4,7 @@ import { getLocalToken } from '@/state/localSession';
 import { notify, notifySessionExpired } from './systemEvents';
 
 const API_BASE = (import.meta.env.VITE_API_BASE as string) ?? '/api';
-const CREDITGUARD_API_BASE = (import.meta.env.VITE_CREDITGUARD_API_BASE as string) ?? '/creditguard-api';
+const CAPTUREPRO_API_BASE = (import.meta.env.VITE_CAPTUREPRO_API_BASE as string) ?? '/capturepro-api';
 let sessionExpiryReported = false;
 
 export function coreApiUrl(path: string): string {
@@ -53,13 +53,13 @@ export function createApiClient(msal: IPublicClientApplication) {
     return (res.status === 204 ? undefined : await res.json()) as T;
   }
 
-  async function creditGuard<T>(path: string, init: RequestInit = {}): Promise<T> {
+  async function capturePro<T>(path: string, init: RequestInit = {}): Promise<T> {
     const token = await getToken(msal);
     const headers = new Headers(init.headers);
-    if (!(init.body instanceof FormData)) headers.set('Content-Type', 'application/json');
+    headers.set('Content-Type', 'application/json');
     if (token) headers.set('Authorization', `Bearer ${token}`);
-    const response = await fetch(`${CREDITGUARD_API_BASE}${path}`, { ...init, headers });
-    if (!response.ok) throw new Error(`CreditGuard API ${response.status}: ${await response.text()}`);
+    const response = await fetch(`${CAPTUREPRO_API_BASE}${path}`, { ...init, headers });
+    if (!response.ok) throw new Error(`Capture-Pro API ${response.status}: ${await response.text()}`);
     return (response.status === 204 ? undefined : await response.json()) as T;
   }
 
@@ -73,7 +73,7 @@ export function createApiClient(msal: IPublicClientApplication) {
       request<T>(path, { method: 'PATCH', body: body ? JSON.stringify(body) : undefined }),
     del: <T>(path: string, body?: unknown) =>
       request<T>(path, { method: 'DELETE', body: body ? JSON.stringify(body) : undefined }),
-    creditGuard,
+    capturePro,
   };
 }
 

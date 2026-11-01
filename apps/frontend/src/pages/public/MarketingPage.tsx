@@ -127,7 +127,7 @@ export function MarketingPage() {
 
       <section id="modules" className="mx-auto max-w-7xl px-5 py-12 text-[#15214a] sm:px-8 lg:px-12">
         <p className="text-xs font-bold uppercase text-[#2854d7]">Built to operate</p>
-        <h2 className="mt-2 max-w-xl text-3xl font-black">CreditGuard and PRIME, governed as one platform.</h2>
+        <h2 className="mt-2 max-w-xl text-3xl font-black">Capture-Pro and PRIME, governed as one platform.</h2>
       </section>
     </main>
   );

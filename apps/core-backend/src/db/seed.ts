@@ -17,6 +17,7 @@ import {
   users,
 } from './schema';
 import { EMAIL_TEMPLATE_DEFINITIONS } from '../settings/email-template-definitions';
+import { captureProAdministratorRoleDefinition, registerCaptureProIntegrationMenu, registerCaptureProSalesforceMenus, registerCaptureProSpinergieMenus } from './capture-pro-integration-menu';
 
 config({ path: resolve(__dirname, '../../../../.env') });
 
@@ -123,6 +124,7 @@ async function main() {
   const productDefs = [
     { code: 'CreditGuard', name: 'CreditGuard', description: 'Parent Company Guarantee.' },
     { code: 'PRIME', name: 'PRIME', description: 'Project Requirements & Ident Material Engine.' },
+    { code: 'Capture-Pro', name: 'Capture-Pro', description: 'Commercial intelligence and capture planning for upcoming bids.' },
   ];
   for (const p of productDefs) {
     await db.insert(products).values(p).onConflictDoNothing({ target: products.code });
@@ -150,6 +152,7 @@ async function main() {
     }
   }
   const [creditGuardProduct] = await db.select().from(products).where(eq(products.code, 'CreditGuard'));
+  const [captureProProduct] = await db.select().from(products).where(eq(products.code, 'Capture-Pro'));
   for (const definition of EMAIL_TEMPLATE_DEFINITIONS) {
     const [product] = await db.select({ id: products.id }).from(products).where(eq(products.code, definition.productCode));
     if (!product) continue;
@@ -189,6 +192,19 @@ async function main() {
         });
     }
   }
+  if (captureProProduct) {
+    const captureProRoleDefs = [
+      captureProAdministratorRoleDefinition,
+      { name: 'Capture-Pro Manager', scope: 'global' as const, description: 'Creates opportunities, commissions capture plans, and manages bid decisions.' },
+      { name: 'Capture-Pro Analyst', scope: 'global' as const, description: 'Reviews governed data, agent output, capture-plan sections, and audit evidence.' },
+    ];
+    for (const role of captureProRoleDefs) {
+      await db.insert(roles).values({ ...role, productId: captureProProduct.id }).onConflictDoUpdate({
+        target: roles.name,
+        set: { scope: role.scope, description: role.description, productId: captureProProduct.id },
+      });
+    }
+  }
 
   // --- Public (Global) menus ---
   const publicMenus = [
@@ -212,8 +228,11 @@ async function main() {
   const [generalUserRole] = await db.select().from(roles).where(eq(roles.name, 'General User'));
   const [creditGuardRequestorRole] = await db.select().from(roles).where(eq(roles.name, 'CreditGuard Requestor'));
   const [creditGuardReviewerRole] = await db.select().from(roles).where(eq(roles.name, 'CreditGuard Reviewer'));
+  const [captureProManagerRole] = await db.select().from(roles).where(eq(roles.name, 'Capture-Pro Manager'));
+  const [captureProAnalystRole] = await db.select().from(roles).where(eq(roles.name, 'Capture-Pro Analyst'));
+  const [captureProAdministratorRole] = await db.select().from(roles).where(eq(roles.name, 'Capture-Pro Module Administrator'));
 
-  for (const role of [creditGuardRequestorRole, creditGuardReviewerRole]) {
+  for (const role of [creditGuardRequestorRole, creditGuardReviewerRole, captureProManagerRole, captureProAnalystRole]) {
     if (!role) continue;
     const assignments = await db
       .select({ id: userRoles.id, userId: userRoles.userId, orgId: userRoles.orgId })
@@ -298,6 +317,9 @@ async function main() {
     generalUserRole?.id,
     creditGuardRequestorRole?.id,
     creditGuardReviewerRole?.id,
+    captureProManagerRole?.id,
+    captureProAnalystRole?.id,
+    captureProAdministratorRole?.id,
   ];
 
   // Workspace group — visible to all authenticated roles.
@@ -349,6 +371,32 @@ async function main() {
             ]),
           ),
         );
+    }
+  }
+
+  if (captureProProduct) {
+    const captureProRoles = [globalAdminRole?.id, orgAdminRole?.id, captureProManagerRole?.id, captureProAnalystRole?.id, captureProAdministratorRole?.id];
+    const captureProMenu = await upsertMenu({ name: 'Capture-Pro', route: null, icon: 'briefcase-business', productId: captureProProduct.id, displayOrder: 6 });
+    await grant(captureProMenu.id, captureProRoles);
+    const overviewMenu = await upsertMenu({ name: 'Overview', route: '/app/product/Capture-Pro', icon: 'layout-dashboard', parentId: captureProMenu.id, productId: captureProProduct.id, displayOrder: 1 });
+    await grant(overviewMenu.id, captureProRoles, 'readonly');
+    const dataLibraryMenu = await upsertMenu({ name: 'Data Library', route: '/app/product/Capture-Pro/data-library', icon: 'database', parentId: captureProMenu.id, productId: captureProProduct.id, displayOrder: 3 });
+    await grant(dataLibraryMenu.id, captureProRoles, 'readonly');
+    const agentsMenu = await upsertMenu({ name: 'Agent Workspace', route: '/app/product/Capture-Pro/agents', icon: 'workflow', parentId: captureProMenu.id, productId: captureProProduct.id, displayOrder: 4 });
+    await grant(agentsMenu.id, captureProRoles);
+    const plansMenu = await upsertMenu({ name: 'Capture Plans', route: '/app/product/Capture-Pro/plans', icon: 'notebook-tabs', parentId: captureProMenu.id, productId: captureProProduct.id, displayOrder: 5 });
+    await grant(plansMenu.id, captureProRoles);
+    const governanceMenu = await upsertMenu({ name: 'Governance', route: '/app/product/Capture-Pro/governance', icon: 'shield-check', parentId: captureProMenu.id, productId: captureProProduct.id, displayOrder: 6 });
+    await grant(governanceMenu.id, captureProRoles, 'readonly');
+    const integrationsMenu = await registerCaptureProIntegrationMenu(db);
+    const salesforceMenus = await registerCaptureProSalesforceMenus(db);
+    const spinergieMenus = await registerCaptureProSpinergieMenus(db);
+    if (generalUserRole) {
+      await db.delete(rolesMenus).where(and(eq(rolesMenus.roleId, generalUserRole.id), inArray(rolesMenus.menuId, [
+        captureProMenu.id, overviewMenu.id, dataLibraryMenu.id, agentsMenu.id, plansMenu.id, governanceMenu.id, integrationsMenu.id,
+        salesforceMenus.group.id, salesforceMenus.opportunities.id, salesforceMenus.accounts.id, salesforceMenus.competitors.id, salesforceMenus.bidBudgets.id, salesforceMenus.fabricationYards.id, salesforceMenus.vessels.id, salesforceMenus.sync.id,
+        spinergieMenus.group.id, spinergieMenus.vessels.id, spinergieMenus.charters.id,
+      ])));
     }
   }
 

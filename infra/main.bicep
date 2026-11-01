@@ -49,7 +49,7 @@ resource pg 'Microsoft.DBforPostgreSQL/flexibleServers@2023-06-01-preview' = {
   }
 }
 
-var databases = ['platform_core', 'creditguard', 'prime']
+var databases = ['platform_core', 'creditguard', 'prime', 'capturepro']
 
 resource pgDatabases 'Microsoft.DBforPostgreSQL/flexibleServers/databases@2023-06-01-preview' = [
   for dbName in databases: {
@@ -77,6 +77,7 @@ var services = [
   { name: 'core-backend', port: 4000, db: 'platform_core' }
   { name: 'creditguard-service', port: 4101, db: 'creditguard' }
   { name: 'prime-service', port: 4102, db: 'prime' }
+  { name: 'capture-pro-service', port: 4103, db: 'capturepro' }
 ]
 
 resource apps 'Microsoft.App/containerApps@2024-03-01' = [

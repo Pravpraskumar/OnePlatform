@@ -2,54 +2,6 @@
 	"version": "2.0.0",
 	"tasks": [
 		{
-			"label": "Validate CreditGuard PCG language form",
-			"type": "shell",
-			"command": "C:\\Program Files\\nodejs\\npm.cmd",
-			"args": [
-				"exec",
-				"--workspace",
-				"@platform/frontend",
-				"--",
-				"tsc",
-				"--noEmit",
-				"--ignoreDeprecations",
-				"5.0"
-			],
-			"isBackground": false,
-			"problemMatcher": [
-				"$tsc"
-			],
-			"group": "build"
-		},
-		{
-			"label": "Generate PCG language migration",
-			"type": "shell",
-			"command": "C:\\Program Files\\nodejs\\npm.cmd",
-			"args": [
-				"run",
-				"db:generate",
-				"--workspace",
-				"@platform/creditguard-service"
-			],
-			"isBackground": false,
-			"problemMatcher": [],
-			"group": "build"
-		},
-		{
-			"label": "Apply PCG language migration",
-			"type": "shell",
-			"command": "C:\\Program Files\\nodejs\\npm.cmd",
-			"args": [
-				"run",
-				"db:migrate",
-				"--workspace",
-				"@platform/creditguard-service"
-			],
-			"isBackground": false,
-			"problemMatcher": [],
-			"group": "build"
-		},
-		{
 			"label": "Validate Current Status selector",
 			"type": "shell",
 			"command": "C:\\Program Files\\nodejs\\npm.cmd",
@@ -90,60 +42,6 @@
 			"group": "build"
 		},
 		{
-			"label": "Validate CreditGuard reports page",
-			"type": "shell",
-			"command": "C:\\Program Files\\nodejs\\npm.cmd",
-			"args": [
-				"exec",
-				"--workspace",
-				"@platform/frontend",
-				"--",
-				"tsc",
-				"--noEmit",
-				"--ignoreDeprecations",
-				"5.0"
-			],
-			"isBackground": false,
-			"problemMatcher": [
-				"$tsc"
-			],
-			"group": "build"
-		},
-		{
-			"label": "Validate CreditGuard landing actions",
-			"type": "shell",
-			"command": "C:\\Program Files\\nodejs\\npm.cmd",
-			"args": [
-				"exec",
-				"--workspace",
-				"@platform/frontend",
-				"--",
-				"tsc",
-				"--noEmit",
-				"--ignoreDeprecations",
-				"5.0"
-			],
-			"isBackground": false,
-			"problemMatcher": [
-				"$tsc"
-			],
-			"group": "build"
-		},
-		{
-			"label": "Test CreditGuard Integration",
-			"type": "shell",
-			"command": "C:\\Program Files\\nodejs\\npx.cmd",
-			"args": [
-				"playwright",
-				"test",
-				"creditguard-integration.spec.ts",
-				"--output=test-results\\creditguard-integration"
-			],
-			"isBackground": false,
-			"problemMatcher": [],
-			"group": "test"
-		},
-		{
 			"label": "Validate Signit integration backend",
 			"type": "shell",
 			"command": "C:\\Program Files\\nodejs\\npm.cmd",
@@ -151,24 +49,6 @@
 				"exec",
 				"--workspace",
 				"@platform/core-backend",
-				"--",
-				"tsc",
-				"--noEmit"
-			],
-			"isBackground": false,
-			"problemMatcher": [
-				"$tsc"
-			],
-			"group": "build"
-		},
-		{
-			"label": "Validate approval initiation backend",
-			"type": "shell",
-			"command": "C:\\Program Files\\nodejs\\npm.cmd",
-			"args": [
-				"exec",
-				"--workspace",
-				"@platform/creditguard-service",
 				"--",
 				"tsc",
 				"--noEmit"
@@ -208,86 +88,6 @@
 			"group": "build"
 		},
 		{
-			"label": "Test CreditGuard edit form spacing",
-			"type": "shell",
-			"command": "C:\\Program Files\\nodejs\\npx.cmd",
-			"args": [
-				"playwright",
-				"test",
-				"tests\\e2e\\request-form.spec.ts",
-				"--grep",
-				"edit request does not render trailing empty scroll space",
-				"--output=test-results\\request-form-spacing"
-			],
-			"isBackground": false,
-			"problemMatcher": [],
-			"group": "test"
-		},
-		{
-			"label": "Test CreditGuard edit form spacing",
-			"type": "shell",
-			"command": "C:\\Program Files\\nodejs\\npx.cmd",
-			"args": [
-				"playwright",
-				"test",
-				"request-form.spec.ts",
-				"--grep",
-				"edit request does not render trailing empty scroll space",
-				"--output=test-results\\request-form-spacing"
-			],
-			"isBackground": false,
-			"problemMatcher": [],
-			"group": "test"
-		},
-		{
-			"label": "Test CreditGuard form spacing regression",
-			"type": "shell",
-			"command": "C:\\Program Files\\nodejs\\npx.cmd",
-			"args": [
-				"playwright",
-				"test",
-				"request-form.spec.ts",
-				"--grep",
-				"edit request does not render trailing empty scroll space",
-				"--output=test-results\\request-form-spacing"
-			],
-			"isBackground": false,
-			"problemMatcher": [],
-			"group": "test"
-		},
-		{
-			"label": "Test CreditGuard reviewer reassignment",
-			"type": "shell",
-			"command": "C:\\Program Files\\nodejs\\npx.cmd",
-			"args": [
-				"playwright",
-				"test",
-				"request-form.spec.ts",
-				"--grep",
-				"requestor reassigns an Under Review request",
-				"--output=test-results\\reviewer-reassignment"
-			],
-			"isBackground": false,
-			"problemMatcher": [],
-			"group": "test"
-		},
-		{
-			"label": "Test CreditGuard reviewer completion",
-			"type": "shell",
-			"command": "C:\\Program Files\\nodejs\\npx.cmd",
-			"args": [
-				"playwright",
-				"test",
-				"request-form.spec.ts",
-				"--grep",
-				"assigned reviewer can attach",
-				"--output=test-results\\assigned-reviewer-completion"
-			],
-			"isBackground": false,
-			"problemMatcher": [],
-			"group": "test"
-		},
-		{
 			"label": "Test PRIME MSSQL connection",
 			"type": "shell",
 			"command": "C:\\Program Files\\nodejs\\npx.cmd",
@@ -319,35 +119,262 @@
 			"group": "test"
 		},
 		{
-			"label": "Test CreditGuard attachment refresh",
+			"label": "Test Salesforce opportunity workspace",
 			"type": "shell",
-			"command": "C:\\Program Files\\nodejs\\npx.cmd",
+			"command": "C:\\Program Files\\nodejs\\node.exe",
 			"args": [
-				"playwright",
+				"node_modules/@playwright/test/cli.js",
 				"test",
-				"request-form.spec.ts",
-				"--grep",
-				"uploaded document remains visible",
-				"--output=test-results\\attachment-refresh"
+				"capture-pro-salesforce-opportunities\\.spec\\.ts",
+				"--reporter=list",
+				"--workers=1",
+				"--max-failures=1",
+				"--output=test-results/opportunity-workspace"
 			],
 			"isBackground": false,
-			"problemMatcher": [],
 			"group": "test"
 		},
 		{
-			"label": "Test CreditGuard reports approved summary",
+			"label": "Test Capture-Pro screen separation",
 			"type": "shell",
-			"command": "C:\\Program Files\\nodejs\\npx.cmd",
+			"command": "C:\\Program Files\\nodejs\\node.exe",
 			"args": [
-				"playwright",
+				"node_modules/@playwright/test/cli.js",
 				"test",
-				"core-flows.spec.ts",
-				"--grep",
-				"request reports aggregate the current portfolio",
-				"--output=test-results\\creditguard-reports-approved"
+				"capture-pro-salesforce-opportunities\\.spec\\.ts",
+				"capture-pro-salesforce-sync\\.spec\\.ts",
+				"--reporter=list",
+				"--workers=1",
+				"--max-failures=1",
+				"--output=test-results/capture-pro-separation"
 			],
 			"isBackground": false,
-			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "Test Capture-Pro navigation regression suite",
+			"type": "shell",
+			"command": "C:\\Program Files\\nodejs\\node.exe",
+			"args": [
+				"node_modules/@playwright/test/cli.js",
+				"test",
+				"--reporter=list",
+				"--workers=1",
+				"--max-failures=3",
+				"--output=test-results/capture-pro-navigation-regression"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "Inspect Spinergie vessel schema safely",
+			"type": "shell",
+			"command": "C:\\Program Files\\nodejs\\node.exe",
+			"args": [
+				"--use-system-ca",
+				"--require",
+				"tsx/cjs",
+				"apps/core-backend/src/db/inspect-spinergie-vessels.ts"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "Validate Spinergie product types",
+			"type": "shell",
+			"command": "C:\\Program Files\\nodejs\\node.exe",
+			"args": [
+				"node_modules/typescript/bin/tsc",
+				"--project",
+				"apps/capture-pro-service/tsconfig.json",
+				"--noEmit",
+				"--diagnostics",
+				"--ignoreDeprecations",
+				"5.0"
+			],
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Validate Spinergie frontend types",
+			"type": "shell",
+			"command": "C:\\Program Files\\nodejs\\node.exe",
+			"args": [
+				"node_modules/typescript/bin/tsc",
+				"--project",
+				"apps/frontend/tsconfig.json",
+				"--noEmit",
+				"--diagnostics",
+				"--ignoreDeprecations",
+				"5.0"
+			],
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Validate Spinergie core types",
+			"type": "shell",
+			"command": "C:\\Program Files\\nodejs\\node.exe",
+			"args": [
+				"node_modules/typescript/bin/tsc",
+				"--project",
+				"apps/core-backend/tsconfig.json",
+				"--noEmit",
+				"--diagnostics",
+				"--ignoreDeprecations",
+				"5.0"
+			],
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Generate Spinergie vessel migration",
+			"type": "shell",
+			"command": "C:\\Program Files\\nodejs\\npm.cmd",
+			"args": [
+				"run",
+				"db:generate",
+				"--workspace",
+				"@platform/capture-pro-service"
+			],
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Inspect local Spinergie activation status",
+			"type": "shell",
+			"command": "C:\\Program Files\\nodejs\\node.exe",
+			"args": [
+				"--require",
+				"tsx/cjs",
+				"apps/core-backend/src/db/inspect-spinergie-vessels.ts",
+				"--activation-status"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "Activate approved local Spinergie menus",
+			"type": "shell",
+			"command": "C:\\Program Files\\nodejs\\node.exe",
+			"args": [
+				"apps/core-backend/dist/db/seed-capture-pro-integrations.js"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "Build local core for Spinergie activation",
+			"type": "shell",
+			"command": "C:\\Program Files\\nodejs\\node.exe",
+			"args": [
+				"node_modules/typescript/bin/tsc",
+				"--project",
+				"apps/core-backend/tsconfig.json",
+				"--incremental",
+				"false",
+				"--diagnostics",
+				"--ignoreDeprecations",
+				"5.0"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "Build local Capture-Pro for Spinergie activation",
+			"type": "shell",
+			"command": "C:\\Program Files\\nodejs\\node.exe",
+			"args": [
+				"node_modules/typescript/bin/tsc",
+				"--project",
+				"apps/capture-pro-service/tsconfig.json",
+				"--incremental",
+				"false",
+				"--diagnostics",
+				"--ignoreDeprecations",
+				"5.0"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "Inspect Spinergie charter response structure",
+			"type": "shell",
+			"command": "C:\\Program Files\\nodejs\\node.exe",
+			"args": [
+				"--use-system-ca",
+				"--require",
+				"tsx/cjs",
+				"apps/core-backend/src/db/inspect-spinergie-vessels.ts",
+				"--charters"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "Inspect local Spinergie charter activation",
+			"type": "shell",
+			"command": "C:\\Program Files\\nodejs\\node.exe",
+			"args": [
+				"--require",
+				"tsx/cjs",
+				"apps/core-backend/src/db/inspect-spinergie-vessels.ts",
+				"--activation-status",
+				"--charters"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "Apply approved local Spinergie charter migration",
+			"type": "shell",
+			"command": "C:\\Program Files\\nodejs\\node.exe",
+			"args": [
+				"apps/capture-pro-service/dist/db/migrate.js"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "Inspect approved Foundry agent metadata",
+			"type": "shell",
+			"command": "C:\\Program Files\\nodejs\\node.exe",
+			"args": [
+				"--use-system-ca",
+				"--require",
+				"tsx/cjs",
+				"apps/core-backend/src/db/inspect-foundry-agent.ts"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "Apply approved local Foundry chat migration",
+			"type": "shell",
+			"command": "C:\\Program Files\\nodejs\\node.exe",
+			"args": [
+				"apps/capture-pro-service/dist/db/migrate.js"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "Validate CreditGuard route removal",
+			"type": "shell",
+			"command": "C:\\Program Files\\nodejs\\node.exe",
+			"args": [
+				"node_modules/@playwright/test/cli.js",
+				"test",
+				"routes.spec.ts",
+				"--grep",
+				"CreditGuard URLs return to the product list",
+				"--reporter=list"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "Validate retired CreditGuard UI surfaces",
+			"type": "shell",
+			"command": "C:\\Program Files\\nodejs\\node.exe",
+			"args": [
+				"node_modules/@playwright/test/cli.js",
+				"test",
+				"help-documentation.spec.ts",
+				"admin-email-templates.spec.ts",
+				"--reporter=list"
+			],
+			"isBackground": false,
 			"group": "test"
 		}
 	]

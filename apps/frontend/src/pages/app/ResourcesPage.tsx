@@ -32,7 +32,7 @@ export function ResourcesPage() {
           <div>
             <p className="text-xs font-semibold uppercase text-brand">Application documentation</p>
             <h1 className="mt-1 flex items-center gap-2 text-2xl font-semibold text-slate-900"><BookOpen size={24} />Help Center</h1>
-            <p className="mt-1 text-sm text-slate-500">Guidance for the platform, administration, and CreditGuard workflows.</p>
+            <p className="mt-1 text-sm text-slate-500">Guidance for the platform, administration, and Capture-Pro workflows.</p>
           </div>
           {returnPath && <Link to={returnPath} className="inline-flex items-center gap-2 rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:border-brand hover:text-brand"><ArrowLeft size={16} />Back to screen</Link>}
         </div>

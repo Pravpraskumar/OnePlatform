@@ -8,15 +8,6 @@ import { SignUpPage } from '@/pages/public/SignUpPage';
 import { DashboardPage } from '@/pages/app/DashboardPage';
 import { ProductsPage } from '@/pages/app/ProductsPage';
 import { ProductLandingPage } from '@/pages/app/ProductLandingPage';
-import { CreditGuardRequestsPage } from '@/pages/app/creditguard/CreditGuardRequestsPage';
-import { CreditGuardNewRequestPage } from '@/pages/app/creditguard/CreditGuardNewRequestPage';
-import { CreditGuardEditRequestPage } from '@/pages/app/creditguard/CreditGuardEditRequestPage';
-import { CreditGuardRequestApproversPage } from '@/pages/app/creditguard/CreditGuardRequestApproversPage';
-import { CreditGuardRequestApprovalPage } from '@/pages/app/creditguard/CreditGuardRequestApprovalPage';
-import { CreditGuardBusinessEntitiesPage } from '@/pages/app/creditguard/CreditGuardBusinessEntitiesPage';
-import { CreditGuardModuleUsersPage } from '@/pages/app/creditguard/CreditGuardModuleUsersPage';
-import { CreditGuardIntegrationPage } from '@/pages/app/creditguard/CreditGuardIntegrationPage';
-import { CreditGuardReportsPage } from '@/pages/app/creditguard/CreditGuardReportsPage';
 import { ResourcesPage } from '@/pages/app/ResourcesPage';
 import { AdminConnectionsPage } from '@/pages/admin/AdminConnectionsPage';
 import { AdminLicensesPage } from '@/pages/admin/AdminLicensesPage';
@@ -36,6 +27,24 @@ import { OrgAdminPage } from '@/pages/org/OrgAdminPage';
 import { OrganisationMembersPage } from '@/pages/org/OrganisationMembersPage';
 import { OrganisationProjectsPage } from '@/pages/org/OrganisationProjectsPage';
 import { AccountSettingsPage } from '@/pages/account/AccountSettingsPage';
+import { CaptureProModule } from '@/pages/app/capturepro/CaptureProModule';
+import { CaptureProIntegrationsPage } from '@/pages/app/capturepro/CaptureProIntegrationsPage';
+import { CaptureProOpportunityWorkspacePage, CaptureProSalesforceOpportunitiesPage } from '@/pages/app/capturepro/CaptureProSalesforceOpportunitiesPage';
+import { CaptureProSalesforceSyncPage } from '@/pages/app/capturepro/CaptureProSalesforceSyncPage';
+import { CaptureProSalesforceAccountsPage } from '@/pages/app/capturepro/CaptureProSalesforceAccountsPage';
+import { CaptureProSalesforceCompetitorsPage } from '@/pages/app/capturepro/CaptureProSalesforceCompetitorsPage';
+import { CaptureProSalesforceBidBudgetsPage } from '@/pages/app/capturepro/CaptureProSalesforceBidBudgetsPage';
+import { CaptureProSalesforceFabricationYardsPage } from '@/pages/app/capturepro/CaptureProSalesforceFabricationYardsPage';
+import { CaptureProSalesforceVesselsPage } from '@/pages/app/capturepro/CaptureProSalesforceVesselsPage';
+import { CaptureProSpinergieChartersPage, CaptureProSpinergieVesselsPage } from '@/pages/app/capturepro/CaptureProSpinergieVesselsPage';
+import { CaptureProAgentChatPage } from '@/pages/app/capturepro/CaptureProAgentChatPage';
+import {
+  CaptureProDataLibraryPage,
+  CaptureProGovernancePage,
+  CaptureProOverviewPage,
+  CaptureProPlanPage,
+  CaptureProPlansPage,
+} from '@/pages/app/capturepro/CaptureProPages';
 
 export const router = createBrowserRouter([
   { path: '/', element: <MarketingPage /> },
@@ -52,16 +61,32 @@ export const router = createBrowserRouter([
       { path: '/app', element: <Navigate to="/app/dashboard" replace /> },
       { path: '/app/dashboard', element: <DashboardPage /> },
       { path: '/app/products', element: <ProductsPage /> },
+      { path: '/app/product/CreditGuard/*', element: <Navigate to="/app/products" replace /> },
+      {
+        path: '/app/product/Capture-Pro',
+        element: <CaptureProModule />,
+        children: [
+          { index: true, element: <CaptureProOverviewPage /> },
+          { path: 'opportunities', element: <CaptureProSalesforceOpportunitiesPage /> },
+          { path: 'opportunity-workspace', element: <CaptureProOpportunityWorkspacePage /> },
+          { path: 'data-library', element: <CaptureProDataLibraryPage /> },
+          { path: 'agents', element: <CaptureProAgentChatPage /> },
+          { path: 'plans', element: <CaptureProPlansPage /> },
+          { path: 'plans/:planId', element: <CaptureProPlanPage /> },
+          { path: 'governance', element: <CaptureProGovernancePage /> },
+          { path: 'integrations', element: <CaptureProIntegrationsPage /> },
+          { path: 'salesforce-sync', element: <CaptureProSalesforceSyncPage /> },
+          { path: 'accounts', element: <CaptureProSalesforceAccountsPage /> },
+          { path: 'competitors', element: <CaptureProSalesforceCompetitorsPage /> },
+          { path: 'bid-budgets', element: <CaptureProSalesforceBidBudgetsPage /> },
+          { path: 'fabrication-yards', element: <CaptureProSalesforceFabricationYardsPage /> },
+          { path: 'vessels', element: <CaptureProSalesforceVesselsPage /> },
+          { path: 'spinergie-vessels', element: <CaptureProSpinergieVesselsPage /> },
+          { path: 'spinergie-charters', element: <CaptureProSpinergieChartersPage /> },
+          { path: 'salesforce-opportunities', element: <Navigate to="/app/product/Capture-Pro/opportunities" replace /> },
+        ],
+      },
       { path: '/app/product/:code', element: <ProductLandingPage /> },
-      { path: '/app/product/CreditGuard/requests', element: <CreditGuardRequestsPage /> },
-      { path: '/app/product/CreditGuard/requests/new', element: <CreditGuardNewRequestPage /> },
-      { path: '/app/product/CreditGuard/requests/:requestId/edit', element: <CreditGuardEditRequestPage /> },
-      { path: '/app/product/CreditGuard/requests/:requestId/approvers', element: <CreditGuardRequestApproversPage /> },
-      { path: '/app/product/CreditGuard/requests/:requestId/approval', element: <CreditGuardRequestApprovalPage /> },
-      { path: '/app/product/CreditGuard/reports', element: <CreditGuardReportsPage /> },
-      { path: '/app/product/CreditGuard/application-setup/business-entities', element: <CreditGuardBusinessEntitiesPage /> },
-      { path: '/app/product/CreditGuard/application-setup/module-users', element: <CreditGuardModuleUsersPage /> },
-      { path: '/app/product/CreditGuard/application-setup/integration', element: <CreditGuardIntegrationPage /> },
       { path: '/app/resources', element: <Navigate to="/app/help" replace /> },
       { path: '/app/help', element: <ResourcesPage /> },
       { path: '/app/help/:topicId', element: <ResourcesPage /> },

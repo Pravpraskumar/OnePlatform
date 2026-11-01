@@ -20,6 +20,7 @@ export const organisation = {
 export const products = [
   { id: 'product-cg', code: 'CreditGuard', name: 'CreditGuard', description: 'Financial security workflow', isActive: true },
   { id: 'product-prime', code: 'PRIME', name: 'PRIME', description: 'Project controls', isActive: true },
+  { id: 'product-capture-pro', code: 'Capture-Pro', name: 'Capture-Pro', description: 'Commercial intelligence and capture planning', isActive: true },
 ];
 
 export const creditGuardRequest = {
@@ -141,6 +142,19 @@ export const emailTemplate = {
   updatedAt: '2026-09-02T00:00:00.000Z',
 };
 
+export const captureProEmailTemplate = {
+  ...emailTemplate,
+  id: 'template-2',
+  productId: 'product-cp',
+  productCode: 'Capture-Pro',
+  productName: 'Capture-Pro',
+  eventKey: 'opportunity-update',
+  eventName: 'Opportunity Update',
+  subjectTemplate: 'Opportunity {{opportunityNumber}} updated',
+  bodyTemplate: 'Hello {{recipientName}},\n\nOpportunity {{opportunityNumber}} was updated.',
+  availablePlaceholders: ['recipientName', 'opportunityNumber'],
+};
+
 export const approver = {
   id: 'approver-1',
   orgId: organisation.id,
@@ -228,7 +242,7 @@ function bodyFor(url: URL, method: string): unknown {
   if (path === '/notifications/request-review') return { status: 'sent', logId: emailDeliveryLog.id };
   if (path === '/notifications/reviewer-reassignment') return { status: 'sent', logId: emailDeliveryLog.id };
   if (path === '/notifications/email-logs') return [emailDeliveryLog];
-  if (path === '/notifications/email-templates') return [emailTemplate];
+  if (path === '/notifications/email-templates') return [emailTemplate, captureProEmailTemplate];
   if (/\/modules\/[^/]+\/projects$/.test(path)) {
     return { projectRequired: false, lastProjectId: null, projects: [{ id: 'project-1', code: 'P-100', name: 'Demo Project' }] };
   }
